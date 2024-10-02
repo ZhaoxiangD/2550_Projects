@@ -1,0 +1,190 @@
+---
+title: "Project-1"
+format: pdf
+---
+
+```{r}
+library(dplyr)
+library(kableExtra)
+```
+
+
+## Quarto
+
+```{r}
+data <- read.csv("../Data/project1.csv")
+air <- read.csv("../Data/aqi_values.csv")
+colnames(data)[[1]] <- 'Race'
+colnames(data)[[3]] <- 'Sex'
+```
+
+First, we would like to examine the missing pattern in the dataset.
+
+```{r}
+data_na <- data[rowSums(is.na(data)) > 0,]
+colnames(data_na)[[1]] <- 'Race'
+
+data_na %>%
+  summarise_all(funs(sum(is.na(.))*100/n())) %>%
+  gather(key = 'Variable', value = 'Missing') %>%
+  arrange(desc(Missing)) %>%
+  kable(col.names = c('Variables', 'Missing Percentage (%)')) %>%
+  kable_styling()
+```
+
+It can be seen that all individual who have at least one missing value in the dataset are all missing the variables other than `Sex`, `Flag`, `Age.Yr` and `X.CR`.  This indicates that all the missingness in the data set is due to the variables related to the weather conditions of the race. There for, we want to further investigate the missingness pattern by comparing the pattern of `Year` and `Race` variables.
+
+```{r}
+data_na$Race.Year <- paste(data_na$Race, data_na$Year, sep = '_')
+summary(as.factor(data_na$Race.Year))
+```
+
+The summary table shows that the In year 2011, 3 races have missing weather conditions and in year 2012, Grandma’s Marathon has missing weather conditions. And the number of missingness is the same as the number of records of that races. This indicates that the missingness is due to the fact that there is no weather data recorded in these races, and the missing mechanism is Missing at Random (MCAR).
+
+We would also like to explore the missing pattern among air quality data.
+
+```{r}
+air_na <- air[rowSums(is.na(air)) > 0,]
+air_na %>%
+  summarise_all(funs(sum(is.na(.))*100/n())) %>%
+  gather(key = 'Variable', value = 'Missing') %>%
+  arrange(desc(Missing)) %>%
+  kable(col.names = c('Variables', 'Missing Percentage (%)')) %>%
+  kable_styling()
+```
+
+Again, all missingness is missed due to missingness of `aqi` value,  and all rows with missing `aqi` is measured in `1 hour` duration. This indicates that the missingness is due to the fact that there is no air quality data recorded in these hours, and the missing mechanism is Missing at Random (MCAR).
+
+```{r}
+summary(as.factor(air_na$sample_duration))
+```
+
+## AIM 1: Examine effects of increasing age on marathon performance in men and women
+
+```{r}
+record <- read.csv("../Data/course_record.csv")
+record$Race <- case_when(
+  record$Race == 'B' ~ 0,
+  record$Race == 'C' ~ 1,
+  record$Race == 'NY' ~ 2,
+  record$Race == 'TC' ~ 3,
+  record$Race == 'D' ~ 4
+)
+
+colnames(record)[[4]] <- 'Sex'
+record$seconds <- period_to_seconds(hms(record$CR))
+record$Sex <- ifelse(record$Sex == 'M', 1, 0)
+
+
+data_record <- left_join(data, record, by = c('Race', 'Year', 'Sex'))
+data_record$Time <- data_record$seconds + (data_record$X.CR/100) * data_record$seconds
+
+ggplot(data_record, aes(x = Age..yr., y = Time, color = as.factor(Sex))) + 
+  geom_point(size = 0.2, alpha = 0.2) +
+  geom_smooth(se = F) +
+  facet_wrap(~Race)
+
+```
+
+## AIM 2: Explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender.
+ 
+```{r}
+ggplot(data_record, aes(x = Age..yr., y = X.CR, color = as.factor(Flag))) + 
+  geom_point(size = 0.2, alpha = 0.2) +
+  geom_smooth(se = F)
+```
+
+```{r}
+record_flag <- left_join(record, data[,1:4], by = c('Race', 'Year', 'Sex'))
+record_break <- record_flag %>%
+  distinct(CR, .keep_all = T)
+
+flag_break_record <- round(as.numeric(summary(as.factor(record_break$Flag))*100/nrow(record_break)),3)
+flag_data <- round(as.numeric(summary(as.factor(data$Flag))*100/nrow(data)),3)
+
+flag_df <- data.frame(Flag = c('NA', 'Green', 'Red', 'White', 'Yellow'), 
+                      Record = flag_break_record, 
+                      Data = flag_data)
+flag_df %>%
+  kable(col.names = c('Flag', 'Percentage in record breaking cases (%)', 'Percentage in Data (%)')) %>%
+  kable_styling()
+```
+
+It can be shown that among the times that the record is broken, the percentage of `Green` flag is higher than the percentage of `Green` flag in the data by more than 10 percentage points and the percentage of `Yellow` flag is lower than the percentage of `Yellow` flag in the data by more than 10 percentage points too. 
+
+
+```{r}
+Avg_CR_unweighted <- data_record %>%
+  group_by(Sex, Age..yr.) %>%
+  summarise(mean_CR_unweight = mean(X.CR))
+
+Flag_Weight <- data_record %>%
+  group_by(Flag) %>%
+  summarise(weight = n()/nrow(data_record))
+
+data_record_weight <- left_join(data_record, Flag_Weight, by = 'Flag')
+
+Avg_CR_weighted <- data_record_weight %>%
+  group_by(Sex, Age..yr.) %>%
+  summarise(mean_CR_weighted = weighted.mean(X.CR, w = weight))
+
+data_record_weight <- left_join(data_record_weight, Avg_CR_weighted, by = c('Sex', 'Age..yr.'))
+data_record_weight <- left_join(data_record_weight, Avg_CR_unweighted, by = c('Sex', 'Age..yr.'))
+
+data_record_weight$below_avg <- ifelse(data_record_weight$X.CR < data_record_weight$mean_CR_unweight, 1, 0)
+data_record_weight$below_avg_w <- ifelse(data_record_weight$X.CR < data_record_weight$mean_CR_weighted, 1, 0)
+data_weight_long <- pivot_longer(data_record_weight, cols = c('Td..C', 'Tw..C', 'Tg..C', 'WBGT'), names_to = 'Type', values_to = 'Temp')
+
+data_weight_long <- pivot_longer(data_weight_long, cols = c('below_avg', 'below_avg_w'), names_to = 'Cr_type', values_to = 'Below_avg_CR')
+
+ggplot(data_weight_long, aes(x = Type, y = Temp, color = as.factor(Below_avg_CR))) + 
+  geom_boxplot() + 
+  facet_wrap(~Cr_type)
+```
+
+```{r}
+t.test(x=data_record_weight$Tg..C[data_record_weight$below_avg == 0], y=data_record_weight$Tg..C[data_record_weight$below_avg == 1])
+
+t.test(x=data_record_weight$Tw..C[data_record_weight$below_avg == 0], y=data_record_weight$Tw..C[data_record_weight$below_avg == 1])
+
+t.test(x=data_record_weight$WBGT[data_record_weight$below_avg == 0], y=data_record_weight$WBGT[data_record_weight$below_avg == 1])
+
+```
+
+T-test shows that the average difference are all significant. and weight does not matter.
+
+```{r}
+data_record_weight$Tg_flag <- case_when(data_record_weight$Tg..C < 19.475000 ~ 1,
+                                       data_record_weight$Tg..C < 24.955556 ~ 2,
+                                       data_record_weight$Tg..C < 30.000000 ~ 3,
+                                       TRUE ~ 4)
+data_record_weight$Tg_flag <- as.factor(data_record_weight$Tg_flag)
+
+data_record_weight$Avg_Cr_Diff <- (data_record_weight$X.CR - data_record_weight$mean_CR_weighted)/
+  data_record_weight$mean_CR_weighted
+
+data_record_weight %>%
+  group_by(Sex, Age..yr., Flag) %>%
+  summarise(mean_cr = mean(Avg_Cr_Diff)) %>%
+  ggplot(aes(x = Age..yr., y = mean_cr, color = as.factor(Flag))) +
+  geom_point(size= 0.5) +
+  geom_smooth(se = T) +
+  facet_wrap(~Sex)
+```
+
+##AIM3: Identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance.
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
