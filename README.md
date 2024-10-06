@@ -1,4 +1,4 @@
-# 2610_Projects
+# 2550_Projects
 
 ## Project 1
 ### Exploriatry data analysis on impact of weather on marathon performance across age and gender.
