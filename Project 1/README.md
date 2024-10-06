@@ -21,4 +21,12 @@ Exploratory data analysis reveals a non-linear relationship between age and mara
 
 `EDA-Marathon.pdf`: PDF version of exploratory data analysis report.
 
+## Dependencies
+
+The following packages were used in this analysis:
+
+- Data Manipulation: `dplyr`, `tidyr`, `lubridate`, `stringr`
+- Table Formatting: `gtsummary`, `kableExtra`
+- Data Visualization: `ggplot2`, `RColorBrewer`, `gridExtra`, `ggpubr`, `latex2exp`
+
 
