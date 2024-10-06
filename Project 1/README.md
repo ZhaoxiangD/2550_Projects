@@ -9,8 +9,12 @@ This report examines the relationship between marathon performance and age acros
 ### Results
 Exploratory data analysis reveals a non-linear relationship between age and marathon performance. Performance initially increases with age until approximately 26 years old, then declines. Younger runners are most susceptible to weather effects, with a maximum of 50% reduction in marathon performance. However, older runners are more likely to be affected by weather. Female runners are less susceptible to weather effects than male runners. Air quality can amplify the impact of adverse weather conditions on marathon performance.
 
-# Files
+## Files
 
-## Report
+### Report
+
+`EDA-Marathon.qmd`: Quarto mark down version of exploratory data analysis report.
+
+`EDA-Marathon.pdf`: PDF version of exploratory data analysis report.
 
 
