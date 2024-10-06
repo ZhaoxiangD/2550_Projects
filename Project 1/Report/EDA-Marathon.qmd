@@ -1,7 +1,9 @@
 ---
-title: "Project-1"
+title: "Exploriatry data analysis on impact of weather on marathon performance across age and gender"
 format: pdf
 author: Zhaoxiang Ding
+date: last-modified
+date-format: "long"
 execute:
   echo: false
   warning: false
@@ -23,10 +25,16 @@ library(RColorBrewer)
 library(gridExtra)
 ```
 
+## Introduction
 
-## Exploratory Analysis
+Marathon running is a physically demanding sport which requires a combination of endurance, strength, and mental fortitude. It was well known that aging can effect reduced ability to tolerate heat stress in older individuals by effecting the body's ability to regulate temperature. Bad weather conditions, such as high temperature, humidity, and solar radiation, can also have a negative impact on marathon performance by reducing the body's ability to release heat. While age and weather conditions are known to influence athletic performance, their effects on marathon runners, especially in terms of gender differences, remain understudied. 
 
-There are 11564 records with 14 variables in the data set. Each row represent the fastest finishing time among men or women at a year of age, compared with the course record (`%CR`) among Boston, Chicago, New York, Twin Cities, Grandma’s Marathons for 17 to 24 years, 1993-2016, and the corresponding weather conditions. 
+This report aim to examine effects of increasing age on marathon performance in men and women, explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender, identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance and evaluate the impact of air quality on marathon performance. The analysis is carried out in R (version 4.4.0) using `ggplot2`, `dplyr`, `lubridate`, `kableExtra`, `gtsummary`, `stringr`, `ggpubr`, `RColorBrewer`, `gridExtra` and `latex2exp` packages.
+
+
+## Data preprocessing
+
+There are 11564 records with 14 variables in the raw data set. Each row represent the fastest finishing time among men or women at a year of age, compared with the percentage off course record (`%CR`) among Boston, Chicago, New York, Twin Cities, Grandma’s Marathons for 17 to 24 years, 1993-2016, and the corresponding weather conditions. 
 
 The participants are range from age 14 to 91 for men, and 14 to 88 for women. The distribution of the weather conditions (represented by `Flag`, a variable that indicates the wet bulb globe temperature(WBGT)) is shown in @tbl-data-missing. `WBGT` is the Weighted average of dry bulb, wet bulb, and globe temperature (measured in celsius), which measure the heat stress considering temperature, humidity and solar radiation. Therefor, `Flag` is a reasonable proxy for the weather conditions of marathons, with `White` indicating WBGT is lower than 10 degrees, `Green` indicating WBGT is between 10 and 18 degrees, `Yellow` indicating WBGT is between 18 and 23 degrees, and `Red` indicating WBGT is between 20 and 28 degrees, and `Black` indicating WBGT is higher than 28 degrees. @tbl-data-missing shows that the distribution of weather condition is not balanced, with more than 40% of records are in `Green` flag and only 5% of records are in `Red` flag. No races were held in `Black` flag condition. There are 491 records (4%) missing the `Flag` information, as long as other weather conditions, which is because the race was canceled due to weather conditions. However, these records still contains the information of the fastest finishing time. The deatils of the races with missing weather conditions are: Chicago Marathon, New York City Marathon, Twin Cities Marathon in 2011 and Grandma’s Marathon in 2012. Excluding those records from our analysis may bring bias as it's anticipated that the weather conditions may have an impact on the marathon performance. However, considering the relative small portion of missingness, we will exclude them from the analysis.
 
@@ -68,8 +76,7 @@ colnames(na_df) <- c('Race', 'Year')
 #   kable_styling()
 ```
 
-This report aim to examine effects of increasing age on marathon performance in men and women, explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender, identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance and evaluate the impact of air quality on marathon performance. The analysis is carried out in R (version 4.4.0) using `ggplot2`, `dplyr`, `lubridate`, `kableExtra`, `gtsummary`, `stringr`, `ggpubr`, `RColorBrewer`, `gridExtra` and `latex2exp` packages.
-
+The data set also include a separate file contains the course record of the marathon in the given years, but with different coding for the races and sex. We  first unified the coding system of the two files by converting the coding of the course record file to the same as the marathon performance file. We then merged the two files by the race, year and sex. Another file in the data set contains the air quality index (AQI) values with different sampling duration and measured units of the marathon location in the given years. The inspection of the data shows that the AQI values are missing for sampling duration: "1 HOUR". Since the both 1 hour duration and 8 hour duration shares the same measuring unit: "Parts per million", and there are no missing values for 8 hour duration, it was assumed that the missing value of 1 hour duration can be ignored and the information of the 8 hour duration can be used to represent the air quality of the marathon location. Therefore, we will exclude AQI records measured in 1 hour duration from the analysis. 
 
 ## Examine effects of increasing age on marathon performance in men and women
 
@@ -402,7 +409,7 @@ ggplot(cor_df_long, aes(x = Age_grp, y = Correlation, color = as.factor(Type))) 
 
 ## Evaluate the impact of air quality on marathon performance
 
-Except for the weather conditions, air quality may also have an effect on marathon performance. We will explore the impact of air quality on marathon performance by examining the correlation between the air quality index (AQI) and the normalized difference. The AQI of each race is calculated by averaging the AQI of all hours measured by 8-HR RUN AVERAEG BEGIN HOUR. The data set provides other kinds of measurements of air quality, but only record measured by 8-HR RUN AVERAEG BEGIN HOUR has no missing value and is measured in the same way across all locations and years. 
+Except for the weather conditions, air quality may also have an effect on marathon performance. We will explore the impact of air quality on marathon performance by examining the correlation between the air quality index (AQI) and the normalized difference. The AQI of each race is calculated by averaging the AQI of all hours measured by 8-HR RUN AVERAEG BEGIN HOUR. The data set provides other kinds of measurements of air quality, but only records measured by 8-HR RUN AVERAEG BEGIN HOUR have no missing value and are measured in the same way across all locations and years. 
 
 
 The result (@fig-air) shows that the correlation between AQI and the normalized difference is roughly the same across all ages, with the average correlation is only 0.05. To further explore the effect of air quality, we also fit a linear model to examine the effect of other weather parameters on marathon performance, condition on air quality. The model is fitted by $Diff \sim \beta_0 + \beta_1X + \beta_2*AQI + \beta_3*X*AQI$, where $Diff$ is the normalized difference, $X$ is the weather parameter, and $AQI$ is the air quality index. The estimated coefficient of $\beta_1$ and $\beta_3$ , and the corresponding p-value are reported in @tbl-air. The result shows that, only the effect of Solar Radiation is not siginificantly associated with air quality, and after condition on air quality, the effect of relative humidity is still not significant. The estimated value of $\beta_3$ for other weather parameters are all significantly above 0, indicating that the effect of weather parameters on marathon performance is stronger when AQI is higher (worse air quality). 
@@ -506,9 +513,11 @@ coef_df %>%
   kable_styling()
 ```
 
-## Conclusion
+## Conclusion and discussion
 
-Our analysis shows that aging have an overall negative impact on marathon performance, in terms of fastest finish time and percentage off course record. All weather conditions except for the relative humidity have a significant impact on marathon performance, in terms of normalized difference, with higher temperature, solar radiation and dew point and lower wind speed are associated with worse marathon performance. Runners around 26 years old are the fastest runner compare to all other age, and effect of aging start to accelerate around 53 years old (@fig-age-time and @fig-age-record).Wet Bulb Globe Temperature only have effect on marathon performance when the temperature is over 23 degrees (Red Flag). The effect of Wet Bulb Globe Temperature varies across age and sex, where the effect is stronger among younger runners (between 20 to 30 years old) and among male runners (@fig-weather-age). Even though young runners suffered the biggest effect of bad weather conditions, old runners are more likely to be affected by the weather conditions (@fig-correlation). Temperatures measured in all kinds of way(Dry bulb, wet bulb, etc.) are the mostly related to marathon performance.
+Our analysis shows that aging have an overall negative impact on marathon performance, in terms of fastest finish time and percentage off course record. All weather conditions except for the relative humidity have a significant impact on marathon performance, in terms of normalized difference, with higher temperature, solar radiation and dew point and lower wind speed are associated with worse marathon performance. Runners around 26 years old are the fastest runner compare to all other age, and effect of aging start to accelerate around 53 years old (@fig-age-time and @fig-age-record).Wet Bulb Globe Temperature only have effect on marathon performance when the temperature is over 23 degrees (Red Flag). The effect of Wet Bulb Globe Temperature varies across age and sex, where the effect is stronger among younger runners (between 20 to 30 years old) and among male runners (@fig-weather-age). Even though young runners suffered the biggest effect of bad weather conditions, old runners are more likely to be affected by the weather conditions (@fig-correlation). Temperatures measured in all kinds of way(Dry bulb, wet bulb, etc.) are the mostly related to marathon performance. AQI value, on it's own, has little effect on marathon performance, but it can amplify the effect of other weather parameters on marathon performance. The effect of weather parameters on marathon performance is stronger when AQI is higher.
+
+Even though the analysis shows that there is little correlation between relative humidity and marathon performance, and there is no significant association between 2. This result can not be drawed to the conclusion that relative humidity has no effect on marathon performance. First of all, dew point and wet bulb temperature, which are both related to relative humidity, are significantly associated with marathon performance. Second, the report only inspect the linear relationship between weather parameters and marathon performance, and the effect of relative humidity on marathon performance may be non-linear. Third, the effect of relative humidity on marathon performance may be mediated by other weather parameters, and the effect of relative humidity may be significant when condition on other weather parameters.
 
 ## Code Appendix
 
