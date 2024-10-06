@@ -1,3 +1,7 @@
+library(dplyr)
+library(tidyr)
+
+
 # Marathon performance data
 data <- read.csv("../Data/project1.csv")
 air <- read.csv("../Data/aqi_values.csv")
