@@ -13,7 +13,7 @@ execute:
 
 ## Abstract
 
-Behavioral Activation (BA) has been proposed as a treatment to support smoking cessation in individuals with Major Depressive Disorder (MDD), though evidence regarding its effectiveness remains limited. This study re-evaluates the impact of BA on smoking cessation, utilizing data from a prior 2x2 factorial randomized controlled trial and implementing a novel analytical approach. Our primary objectives are to investigate potential moderators of BA's effect on end-of-treatment (EOT) smoking abstinence and to identify baseline predictors of abstinence while accounting for pharmacotherapy. We adopt a logistic regression framework to estimate the causal effect, examining odds of abstinence rather than abstinence rates, and incorporate interaction terms to capture nuanced treatment effects. Findings confirm that BA does not significantly influence smoking cessation, aligning with prior results. However, several baseline predictors, including ftcd_score, NHW, and NMR, demonstrate strong associations with abstinence, and Age moderates the effect of pharmacotherapy on cessation. While this model offers valuable insights, limitations such as sample size constraints and potential model dependency suggest a need for further research.
+Behavioral Activation (BA) has been proposed as a treatment to support smoking cessation in individuals with Major Depressive Disorder (MDD), though evidence regarding its effectiveness remains limited. This study re-evaluates the impact of BA on smoking cessation, utilizing data from a prior 2x2 factorial randomized controlled trial. Our primary objectives are to investigate potential moderators of BA's effect on end-of-treatment (EOT) smoking abstinence and to identify baseline predictors of abstinence while accounting for pharmacotherapy. We adopt a logistic regression framework to estimate the causal effect, examining odds of abstinence rather than abstinence rates, and incorporate interaction terms to capture nuanced treatment effects. Findings confirm that BA does not significantly influence smoking cessation, aligning with prior results. However, several baseline predictors, including ftcd_score, NHW, and NMR, demonstrate strong associations with abstinence, and Age moderates the effect of pharmacotherapy on cessation. While this model offers valuable insights, limitations such as sample size constraints and potential model dependency suggest a need for further research.
 
 ## Introduction
 
@@ -26,7 +26,7 @@ Our objective is to explore potential moderators influencing the effectiveness o
 In @Hitsman_2023's work, the causal effect was estimated by comparing the abstinence rates between the treatment and control groups, following an intent-to-treat (ITT) approach. Rather than solely examining abstinence rates, this project evaluates the odds of abstinence and estimates the causal effect using the odds ratio of abstinence between the treatment and control groups, while adhering to ITT principles. The causal effect, denoted as $\hat{\tau}$, can be formulated as follows:
 
 $$
-\hat{\tau} = \frac{odds(E[Y^1])}{odds(E[Y^0])}
+\hat{\tau} = \frac{E[odds(Y^1)]}{E[odds(Y^0)]}
 $$
 
 ```{r}
@@ -69,8 +69,8 @@ The dataset originates from a 2x2 randomized factorial design, theoretically bal
 
 $$
 \begin{aligned}
-\hat{\tau} &= \frac{odds(E[Y^1])}{odds(E[Y^0])} \\
-&= \frac{odds(E[Y|A = 1])}{odds(E[Y|A = 0])}
+\hat{\tau} &= \frac{E[odds(Y^1)]}{E[odds(Y^0)])} \\
+&= \frac{E[odds(Y)|A = 1]}{E[odds(Y)|A = 0]}
 \end{aligned}
 $$
 
@@ -153,7 +153,7 @@ plot.roc(auc_train_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.
 legend("bottomright", legend = c("Lasso", "Ridge"), col = c("black", "blue"), lty = 1)
 ```
 
-The penalty parameters for both Lasso and Ridge regressions were selected by identifying the largest parameter value within one standard error of the minimum error. As shown in @fig-lasso, Ridge regression achieved a higher AUC than Lasso regression, suggesting stronger performance. However, as Ridge regression does not shrink coefficients to zero, it cannot facilitate variable selection.
+The penalty parameters for both Lasso and Ridge regressions were selected by identifying the largest parameter value within one standard error of the minimum cross validation error. As shown in @fig-lasso, Ridge regression achieved a higher AUC than Lasso regression, suggesting stronger performance. However, as Ridge regression does not shrink coefficients to zero, it cannot facilitate variable selection.
 
 ```{r}
 #| label: fig-elbow
@@ -191,7 +191,7 @@ plot.roc(auc_train_sub1, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x 
 legend("bottomright", legend = c("L0", "L0L1"), col = c("red", "green"), lty = 1)
 ```
 
-The result shows that subset selection with L0 penalty has a higher AUC than subset selection with L0L1 penalty, indicating that subset selection with L0 penalty has a better performance.
+@fig-roc-01 shows that subset selection with L0 penalty has a higher AUC than subset selection with L0L1 penalty, indicating that subset selection with L0 penalty has a better performance.
 
 ```{r}
 #| label: fig-roc-test
@@ -222,7 +222,7 @@ legend("bottomright", legend = c("Lasso", "Ridge", "L0", "L0L1"), col = c("black
 
 ```
 
-@fig-roc-test shows the models' performance in test data. Subset selection model with L0 and L1 penalty have the highest AUC among all models, indicating the model is robust. It is worth to notice that lasso regression, eventhough have a lower AUC than subset selection with ridge regression, performs better for the purpose of hight sensitivity. Based on this result, we use the model with both L0 and L1 penalty to answer our research question. The result of the model is shown in @tbl-coef. The model exclude all but 3 terms, including all terms with behaviour treatment. Indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. However, `Var`
+@fig-roc-test shows the models' performance in test data. Subset selection model with L0 and L1 penalty have the highest AUC among all models, indicating the model is robust. It is worth to notice that lasso regression, eventhough have a lower AUC than subset selection with ridge regression, performs better for the purpose of hight sensitivity. Based on this result, we use the model with both L0 and L1 penalty to answer our research question. The result of the model is shown in @tbl-coef. The model exclude all but 3 terms, including all terms with behaviour treatment. Indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. 
 
 Eventhough the model shows that behaviour treatment has no effect on smoking cessation, it can still help us to identify important predictors. `ftcd_score` can served as a good predictor for smoking cessation, with one unit increase will decrease the odds of quitting smoking by 20%. `NHW` and `NMR` are also valid predictor. With in non hispanic white population, one unite increase in NMR will increase the odds of quitting smoking by 300%. Age is only a significant predictor among people who take varenicline, with 1 year increase in age will increase the odds of quitting smoking by 2%.
 
