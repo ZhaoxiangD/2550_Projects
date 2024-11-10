@@ -10,7 +10,7 @@ This analysis uses logistic regression to model the odds of abstinence rather th
 
 ### Results
 
-The results align with previous findings, showing that BA has no significant impact on smoking cessation in MDD patients. However, important baseline predictors for smoking cessation were identified: `ftcd_score`, `NHW` (non-Hispanic White), and `NMR` (nicotine metabolite ratio) were significant predictors of abstinence, while `Age` moderated the effect of pharmacotherapy on cessation. The subset selection model with L0 penalty demonstrated the best performance with the highest AUC, underscoring its robustness in identifying key predictors and interactions within the dataset. Despite these findings, limitations include model dependency and sample size, which may restrict the exploration of interaction effects.
+The results align with previous findings, showing that BA has no significant impact on smoking cessation in MDD patients. However, important baseline predictors for smoking cessation were identified: `ftcd_score`, `NHW` (non-Hispanic White), and `NMR` (nicotine metabolite ratio) were significant predictors of abstinence, while `Age` moderated the effect of pharmacotherapy on cessation. The subset selection model with L0 penalty demonstrated the best performance with the highest AUC, underscoring its robustness in identifying key predictors and interactions within the dataset. Despite these findings, limitations include model dependency and sample size, which may restrict the exploration of interaction effects. The report can be found [here](Report/Project2.pdf).
 
 ## Files
 
