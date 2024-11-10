@@ -1,0 +1,216 @@
+---
+title: "Project 2"
+author: "Zhaoxiang Ding"
+format: pdf
+---
+
+## Abstract
+
+## Introduction
+
+Behavioral activation (BA) has been viewed as a promising treatment to address smoking cessation for individuals with major depressive disorder (MDD),[@]. However, there are only limited study that examine the effect of BA on smoking cessation. @ used a 2 by 2 randomized factorial design to examine the effect of BA on smoking cessation. The study found that BA does not have a significant effect on smoking cessation. In this project, we will re-examine the effect of BA on smoking cessation using the same data from @ with a different approach. 
+
+The goal of this project is to examine the potiential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy.
+
+## Identifing the causal effect
+
+In @ , work, the casual effect is identified by the difference in the abstinence rate between the treatment group and the control group using intent-to-treat (ITT) principles. Rather than examining the abstinence rate, this project will examine the odds of abstinence, and the causal effect can be identifiled by the odds ratio of abstinence between the treatment group and the control group, using the same ITT principles. The causal effect ($\hat{\tau}$) can be written as:
+
+$$
+\hat{\tau} = \frac{odds(E[Y^1])}{odds(E[Y^0])}
+$$
+
+```{r}
+library(gtsummary)
+library(mice)
+library(glmnet)
+library(pROC)
+library(kableExtra)
+library(dplyr)
+library(L0Learn)
+```
+
+```{r}
+data <- read.csv("../Data/project2.csv")
+num_col <- c(5,12,14:19,23,25)
+ordinal_col <- c(10,11)
+data[,num_col] <- lapply(data[,num_col], as.numeric)
+data[,ordinal_col] <- lapply(data[,ordinal_col], factor, order = T)
+
+data[,-c(num_col, ordinal_col)] <- lapply(data[,-c(num_col, ordinal_col)], factor)
+```
+```{r}
+#| label: tbl-eda
+#| tbl-cap: Summary of the data
+data_tbl <- data[, -1]
+data_tbl$group <- paste(data_tbl$Var, data_tbl$BA, sep = "_")
+data_tbl <- data_tbl[, -c(2,3)]
+tbl_summary(data_tbl, by = group)
+```
+
+The data was collected from a 2 by 2 randomized factorial design, thus all the covariates are supposed to be balanced between the treatment group and the control group. @tbl-eda examine the baseline covariates distribution between the treatment group and the control group. The result shows that all the baseline variables are balanced between the treatment group and the control group, indicating that the randomization is successful. The table also shows that there are missing records in the data set. The missingness may not be missing at random, but considering the low percentage of missingness, we believe the missingness will not have a significant effect on the result and consider the missingness as missing at random. Therefor, all the assumption of the causal effect is satisfied and the causal effect can be written as:
+
+$$
+\begin{aligned}
+\hat{\tau} &= \frac{odds(E[Y^1])}{odds(E[Y^0])} \\
+&= \frac{odds(E[Y|A = 1])}{odds(E[Y|A = 0])}
+\end{aligned}
+$$
+
+Where $A$ is the whether having behavioral treatment or not. A naive approach to estimate the causal effect is to fit a logistic regression model with the treatment group as the only covariate. The causal effect can be estimated by the coefficient of the treatment group. However, this approach does not consider the potential interaction between the treatment group and other covariates, nor the moderation of other variables. In this project, we fit a logistic regression model with the treatment group and the interaction terms between the treatment group and other covariates. The regression model can be written as:
+
+$$
+logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \beta_7X_{ik}X_{-ik}^T
+$$
+Where $A$ is whether having behavior treatment and $Z$ is whether taking varenicline, $X^T$ is the patient's baseline covariates and $X_{ik}X_{-ik}^T$ is the interaction terms of baseline covariates. The causal effect then can be estimated by the coefficient of the treatment group:
+
+$$
+\begin{aligned}
+\hat{\tau} &=  \beta_1 + \beta_4X_i^T + \beta_6Z_i
+\end{aligned}
+$$
+
+Except for identifying the causal effect, this logistic regression model can also be used to examine the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. 
+
+## Identifing the interactions
+
+  Due to the fact that many variables in the data set are catagorical, including all possible interation terms in the model will result more terms than the sample size, which will cause the model to be overfitting. We will manually select the covariates to include in interaction based on whether the marginal main effects of the covariates are significant or not. 
+```{r}
+#| label: tbl-contigency
+#| tbl-cap: Contigency table of the data
+tbl_summary(data_tbl[,-23], by = abst, type = list(readiness ~ 'continuous')) %>%
+  add_p() 
+```
+
+The contigency table shows that only 3 variables have significant marginal main effects. which are `NHW`, `ftcd_score` and `NMR`. `cpd_ps` has a p-value of 0.052, which is close to 0.05. Considering the fact the psychological variables have already been confirmed to have a significant effect on the outcome, we will include `cpd_ps` in the interaction terms too.
+
+Therefor, the model can be written as:
+
+$$
+logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \beta_7L_kL_{-k}^T
+$$
+Where $L_k$ is the kth significant main effect, and $L_{-k}$ is the rest of the main effects. and $L = \{NHW, \ ftcd\_score,\  NMR,\ cpd\_ps\}$
+
+## Model selection
+
+As the primary goal of this project is to identify the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. We conducted variable selection process through Lasso regression,  subset selection with L0 penalty and subset selection with ridge regression. We will also fit a ridge regression model for comparison. All four models are trained using 10-fold cross-validation using 80% of the data and tested using the rest 20% of the data. The model with the highest AUC in the test data will be selected as the final model. Missingness in the data is handled by multiple imputation. 
+
+```{r}
+data_imp <- mice(data[,-1], m = 5, seed = 2550, printFlag = F)
+data_imp <- complete(data_imp)
+train_index <- sample(1:nrow(data_imp), 0.8*nrow(data_imp))
+train_data <- data_imp[train_index,]
+test_data <- data_imp[-train_index,]
+```
+
+```{r}
+#| label: fig-lasso
+#| fig-cap: AUC of Lasso regression and Ridge regression
+# X <- model.matrix(abst~ . + (NHW + edu + ftcd_score + NMR +
+#                                bdi_score_w00 + mde_curr)^2 + Var*(.) + BA*(.), 
+#                   data = train_data)
+X <- model.matrix(abst ~ . + (NHW + ftcd_score + NMR + cpd_ps)^2 + Var*(.) + BA*(.), 
+                   data = train_data)
+X <- X[,-1]
+Y <- factor(train_data$abst)
+lasso_fit <- cv.glmnet(X, Y, family = "binomial", alpha = 1, type.measure = "auc", nfolds = 10)
+ridge_fit <- cv.glmnet(X, Y, family = "binomial", alpha = 0, type.measure = "auc", nfolds = 10)
+auc_train_l <- roc(train_data$abst, predict(lasso_fit, type = "response", newx = X))
+auc_train_r <- roc(train_data$abst, predict(ridge_fit, type = "response", newx = X))
+plot.roc(auc_train_l, print.auc=TRUE, col = 'black')
+plot.roc(auc_train_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
+legend("bottomright", legend = c("Lasso", "Ridge"), col = c("black", "blue"), lty = 1)
+```
+
+The penalty parameter of both Lasso and Ridge regression is selected by selecting the largest value of parameter such that error is within 1 standard error of the minimum. The result in @fig-lasso shows that Ridge regression has a higher AUC than Lasso regression, indicating a better performance. However, ridge regression do not shrink the coefficients to zero, and thus can not be used to select variables.
+
+```{r}
+#| label: fig-elbow
+#| fig-cap: Sequences of cross-validation errors of subset selection with L0 penalty and L0L1 penalty 
+set.seed(2550)
+subset_fit = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0", loss = 'Logistic')
+plot(subset_fit$cvMeans[[1]])
+subset_fit1 = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0L1", loss = 'Logistic')
+plot(sapply(subset_fit1$cvMeans, mean)) # choose gamma
+plot(subset_fit1$cvMeans[[3]]) # choose lambda
+#coef(subset_fit, subset_fit$fit$lambda[[1]][10], 0)
+#coef(subset_fit1, subset_fit1$fit$lambda[[4]][10], subset_fit1$fit$gamma[4])
+```
+
+The penalty parameter of subset selection with L0 penalty and L0L1 penalty is selected by selecting the elbow point of the cross-validation errors. As shown in @fig-elbow, the parameter for L0 penalty is the 20th lambda value(0.356). The parameter for L1 penalty of L0L1 penalty is the 3rd gamma value(0.244) and the parameter for L0 penalty of L0L1 penalty is the 10th lambda value(1.140).
+
+```{r}
+#| label: fig-roc-01
+#| fig-cap: AUC of subset selection with L0 penalty and L0L1 penalty
+auc_train_sub0 <- roc(train_data$abst, as.numeric(predict(subset_fit, 
+                                                          type = "response",
+                                                          newx = X, 
+                                                          subset_fit$fit$lambda[[1]][20], 
+                                                          0)))
+auc_train_sub1 <- roc(train_data$abst, as.numeric(predict(subset_fit1, 
+                                                          type = "response",
+                                                          newx = X, 
+                                                          subset_fit1$fit$lambda[[3]][10], 
+                                                          subset_fit1$fit$gamma[3])))
+plot.roc(auc_train_sub0, print.auc=TRUE, col = 'red')
+plot.roc(auc_train_sub1, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
+legend("bottomright", legend = c("L0", "L0L1"), col = c("red", "green"), lty = 1)
+```
+
+The result shows that subset selection with L0 penalty has a higher AUC than subset selection with L0L1 penalty, indicating that subset selection with L0 penalty has a better performance.
+
+```{r}
+#| label: fig-roc-test
+#| fig-cap: AUC of four models in test data
+
+test_X <- model.matrix(abst~ . + (NHW + ftcd_score + NMR + cpd_ps)^2 + Var*(.) + BA*(.), 
+                   data = test_data)
+test_X <- test_X[,-1]
+test_Y <- factor(test_data$abst)
+
+auc_test_l <- roc(test_Y, predict(lasso_fit, type = "response", newx = test_X))
+auc_test_r <- roc(test_Y, predict(ridge_fit, type = "response", newx = test_X))
+auc_test_sub0 <- roc(test_Y, as.numeric(predict(subset_fit, 
+                                                          type = "response",
+                                                          newx = test_X, 
+                                                          subset_fit$fit$lambda[[1]][20], 
+                                                          0)))
+auc_test_sub1 <- roc(test_Y, as.numeric(predict(subset_fit1, 
+                                                          type = "response",
+                                                          newx = test_X, 
+                                                          subset_fit1$fit$lambda[[3]][10], 
+                                                          subset_fit1$fit$gamma[3])))
+plot.roc(auc_test_l, print.auc=TRUE, col = 'black')
+plot.roc(auc_test_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
+plot.roc(auc_test_sub0, print.auc=TRUE, col = 'red', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.3)
+plot.roc(auc_test_sub1, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.2)
+legend("bottomright", legend = c("Lasso", "Ridge", "L0", "L0L1"), col = c("black", "blue","red", "green"), lty = 1)
+
+```
+
+@fig-roc-test shows the models' performance in test data. Subset selection model with L0 and L1 penalty have the highest AUC among all models, indicating the model is robust. It is worth to notice that lasso regression, eventhough have a lower AUC than subset selection with ridge regression, performs better for the purpose of hight sensitivity. Based on this result, we use the model with both L0 and L1 penalty to answer our research question. The result of the model is shown in @tbl-coef. The model exclude all but 3 terms, including all terms with behaviour treatment. Indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. However, `Var`
+
+Eventhough the model shows that behaviour treatment has no effect on smoking cessation, it can still help us to identify important predictors. `ftcd_score` can served as a good predictor for smoking cessation, with one unit increase will decrease the odds of quitting smoking by 20%. `NHW` and `NMR` are also valid predictor. With in non hispanic white population, one unite increase in NMR will increase the odds of quitting smoking by 300%. Age is only a significant predictor among people who take varenicline, with 1 year increase in age will increase the odds of quitting smoking by 2%.
+
+```{r}
+#| label: tbl-coef
+#| fig-cap: Coefficients of best model
+
+coef_l0 <- coef(subset_fit1, subset_fit1$fit$lambda[[3]][10], subset_fit1$fit$gamma[3])
+coef_l0_names <- row.names(coef(lasso_fit))
+coef_l0_index <- which(coef_l0 != 0)
+coef_l0 <- coef_l0[coef_l0_index]
+coef_l0_names <- coef_l0_names[coef_l0_index]
+
+coef_lasso <- coef(lasso_fit)
+coef_lasso_names <- row.names(coef_lasso)
+coef_lasso_index <- which(coef_lasso != 0)
+coef_lasso <- coef_lasso[coef_lasso_index]
+coef_lasso_names <- coef_lasso_names[coef_lasso_index]
+
+coef_tbl <- data.frame(Variable = coef_l0_names, Coefficients = coef_l0)
+coef_tbl
+```
+
+## Discussion
+
