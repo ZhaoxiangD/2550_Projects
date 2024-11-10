@@ -1,7 +1,9 @@
 ---
-title: "Project 2"
+title: "Evaluating the Impact of Behavioral Activation on Smoking Cessation in Major Depressive Disorder"
 author: "Zhaoxiang Ding"
 format: pdf
+date: last-modified
+date-format: "long"
 bibliography: references.bib
 execute:
   echo: false
@@ -15,7 +17,7 @@ Behavioral Activation (BA) has been proposed as a treatment to support smoking c
 
 ## Introduction
 
-Behavioral Activation (BA) is regarded as a promising intervention for aiding smoking cessation in individuals diagnosed with Major Depressive Disorder (MDD), who are known to be more likely to smoke heavily, exhibit greater nicotine dependence, and experience more severe withdrawal symptoms than those without MDD[@Hitsman_2023]. However, there has been limited research examining the specific impact of BA on smoking cessation outcomes. In one study, @Hitsman_2023 employed a 2x2 randomized factorial design (BA versus standard behavioral treatment (ST) and varenicline versus placebo, which is effect drug to help smoking cessation) to investigate this effect, concluding that BA did not significantly improve smoking cessation outcomes. This project aims to revisit the influence of BA on smoking cessation, using the same dataset from @@Hitsman_2023 but with an alternative analytical approach.
+Behavioral Activation (BA) is regarded as a promising intervention for aiding smoking cessation in individuals diagnosed with Major Depressive Disorder (MDD), who are known to be more likely to smoke heavily, exhibit greater nicotine dependence, and experience more severe withdrawal symptoms than those without MDD[@Hitsman_2023]. However, there has been limited research examining the specific impact of BA on smoking cessation outcomes. In one study, @Hitsman_2023 employed a 2x2 randomized factorial design (BA versus standard behavioral treatment (ST) and varenicline versus placebo, which is effect drug to help smoking cessation) to investigate this effect, concluding that BA did not significantly improve smoking cessation outcomes. This project aims to revisit the influence of BA on smoking cessation, using the same dataset from @Hitsman_2023 but with an alternative analytical approach.
 
 Our objective is to explore potential moderators influencing the effectiveness of behavioral treatment on end-of-treatment (EOT) abstinence rates. Additionally, we seek to identify baseline characteristics that may predict abstinence, while accounting for the effects of behavioral treatment and pharmacotherapy(varenicline).
 
@@ -38,6 +40,7 @@ library(L0Learn)
 ```
 
 ```{r}
+# Read data
 data <- read.csv("../Data/project2.csv")
 num_col <- c(5,12,14:19,23,25)
 ordinal_col <- c(10,11)
@@ -49,6 +52,7 @@ data[,-c(num_col, ordinal_col)] <- lapply(data[,-c(num_col, ordinal_col)], facto
 ```{r}
 #| label: tbl-eda
 #| tbl-cap: Summary of the data
+# summary table
 data_tbl <- data[, -1]
 data_tbl$group <- paste(data_tbl$Var, data_tbl$BA, sep = "_")
 data_tbl$group <- case_when(data_tbl$group == "0_0" ~ "Control",
@@ -57,8 +61,8 @@ data_tbl$group <- case_when(data_tbl$group == "0_0" ~ "Control",
                             data_tbl$group == "1_1" ~ "BA + Varenicline")
 data_tbl <- data_tbl[, -c(2,3)]
 tbl_summary(data_tbl, by = group, type = list(readiness ~ 'continuous')) %>%
-  as_kable()%>%
-  kable_styling(font_size = 10) 
+  as_kable_extra(booktabs = TRUE) %>%
+  kableExtra::kable_styling(latex_options = "scale_down")
 ```
 
 The dataset originates from a 2x2 randomized factorial design, theoretically balancing all covariates across treatment and control groups. As examined in @tbl-eda, baseline covariate distributions confirm that randomization was successful, as covariates appear balanced between groups. The table also reveals some missing data. While the data may not be missing at random, the low proportion of missing records suggests a minimal impact on the results, allowing us to treat the missingness as random. Therefore, the assumptions for identifying causal effects are met, and we express the causal effect as:
@@ -83,6 +87,18 @@ $$
 
 Except for identifying the causal effect, this logistic regression model can also be used to examine the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. 
 
+In order to examine the whther linearity assumtpion of the logistic regression model is met, we first examine the distributions of  continuous variables. Most continuous variables are normally distributed except for variable `hedonsum_y_pq1` and `shaps_score_pq1`, as shown in @fig-continuous. We will conduct a log transformation on these two variables to meet the linearity assumption.
+
+```{r}
+#| label: fig-continuous
+#| fig-cap: Relationship between continuous variables and the outcome variable
+
+# continuous variables
+par(mfrow=c(2,5))
+data_con <- data[,num_col]
+hist_list <- apply(data_con, 2, function(x) hist(x, breaks = 20, main = '', xlab = ""))
+```
+
 ## Identifing the interactions
 
 Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the significance of their marginal main effects.
@@ -90,6 +106,7 @@ Given that many variables in the dataset are categorical, including all possible
 ```{r}
 #| label: tbl-contigency
 #| tbl-cap: Contigency table of the data
+# Contigency table
 tbl_summary(data_tbl[,-23], by = abst, type = list(readiness ~ 'continuous')) %>%
   add_p() 
 ```
@@ -108,6 +125,7 @@ Where $L_k$ is the kth significant main effect, and $L_{-k}$ is the rest of the 
 The primary goal of this project is to identify potential moderators of behavioral treatment effects on EOT abstinence and assess baseline predictors of abstinence, while controlling for behavioral treatment and pharmacotherapy. We explored various variable selection techniques, including Lasso regression, subset selection with an L0 penalty, and ridge regression, all implemented with 10-fold cross-validation on 80% of the data, with testing on the remaining 20%. Multiple imputation addressed missing values in the dataset.
 
 ```{r}
+#multiple imputation
 data_imp <- mice(data[,-1], m = 5, seed = 2550, printFlag = F)
 data_imp <- complete(data_imp)
 train_index <- sample(1:nrow(data_imp), 0.8*nrow(data_imp))
@@ -118,6 +136,7 @@ test_data <- data_imp[-train_index,]
 ```{r}
 #| label: fig-lasso
 #| fig-cap: AUC of Lasso regression and Ridge regression
+# Lasso and ridge regression
 # X <- model.matrix(abst~ . + (NHW + edu + ftcd_score + NMR +
 #                                bdi_score_w00 + mde_curr)^2 + Var*(.) + BA*(.), 
 #                   data = train_data)
@@ -139,13 +158,14 @@ The penalty parameters for both Lasso and Ridge regressions were selected by ide
 ```{r}
 #| label: fig-elbow
 #| fig-cap: Sequences of cross-validation errors of subset selection with L0 penalty and L0L1 penalty 
+#subset selection
 par(mfrow=c(2,2))
 set.seed(2550)
 subset_fit = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0", loss = 'Logistic')
-plot(subset_fit$cvMeans[[1]])
+plot(subset_fit$cvMeans[[1]], ylab = "CV error", main = "L0 penalty", cex.main = 0.5)
 subset_fit1 = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0L1", loss = 'Logistic')
-plot(sapply(subset_fit1$cvMeans, mean)) # choose gamma
-plot(subset_fit1$cvMeans[[3]]) # choose lambda
+plot(sapply(subset_fit1$cvMeans, mean), ylab = "CV error", main = "L0L1 Penalty, Gamma", cex.main = 0.5) # choose gamma
+plot(subset_fit1$cvMeans[[3]], ylab = "CV error", main = "L0L1 Penalty, Lambda", cex.main = 0.5) # choose lambda
 #coef(subset_fit, subset_fit$fit$lambda[[1]][10], 0)
 #coef(subset_fit1, subset_fit1$fit$lambda[[4]][10], subset_fit1$fit$gamma[4])
 ```
@@ -155,6 +175,7 @@ The penalty parameter of subset selection with L0 penalty and L0L1 penalty is se
 ```{r}
 #| label: fig-roc-01
 #| fig-cap: AUC of subset selection with L0 penalty and L0L1 penalty
+# subset regression auc
 auc_train_sub0 <- roc(train_data$abst, as.numeric(predict(subset_fit, 
                                                           type = "response",
                                                           newx = X, 
@@ -175,7 +196,7 @@ The result shows that subset selection with L0 penalty has a higher AUC than sub
 ```{r}
 #| label: fig-roc-test
 #| fig-cap: AUC of four models in test data
-
+# model performance in test data
 test_X <- model.matrix(abst~ . + (NHW + ftcd_score + NMR + cpd_ps)^2 + Var*(.) + BA*(.), 
                    data = test_data)
 test_X <- test_X[,-1]
@@ -208,7 +229,7 @@ Eventhough the model shows that behaviour treatment has no effect on smoking ces
 ```{r}
 #| label: tbl-coef
 #| fig-cap: Coefficients of best model
-
+# model's result
 coef_l0 <- coef(subset_fit1, subset_fit1$fit$lambda[[3]][10], subset_fit1$fit$gamma[3])
 coef_l0_names <- row.names(coef(lasso_fit))
 coef_l0_index <- which(coef_l0 != 0)
@@ -222,7 +243,9 @@ coef_lasso <- coef_lasso[coef_lasso_index]
 coef_lasso_names <- coef_lasso_names[coef_lasso_index]
 
 coef_tbl <- data.frame(Variable = coef_l0_names, Coefficients = coef_l0)
-coef_tbl
+coef_tbl %>%
+  kable(format = "latex", booktabs = T) %>%
+  kable_styling(latex_options = "scale_down")
 ```
 
 ## Discussion
@@ -231,11 +254,23 @@ The result of this project shows that behaviour treatment has no effect on smoki
 
 Several important predictors are identified in this project. `ftcd_score`, `NHW` and `NMR` are predicyors for smoking cessation. `Age` is identified as the moderator of the effect of `Var` on smoking cessation. 
 
-This project has several limitations. First of all, the model selected to use will have a large impact on the result. The subset selection model with L0 and L1 penalty is selected as the best model in this project, but other models may have different results. For example, the lasso regression model shows that behaviour treatment has effect on smoking cessation, and the effect is moderated by `inc` and `bdi score`, but considering the low effect size of the interaction terms, whether the effect is significant or not is still questionable. Second, the data set only contains limited sample size, making examining the effect of interaction terms difficult. As shown in the previous section, only limited interaction terms are included in the model while those interaction terms excluded from the model may also have significant effect.
+This project has several limitations. First of all, the model selected to use will have a large impact on the result. The subset selection model with L0 and L1 penalty is selected as the best model in this project, but other models may have different results. For example, the lasso regression model(@tbl-coef-lasso) shows that behaviour treatment has effect on smoking cessation, and the effect is moderated by `inc` and `bdi score`, but considering the low effect size of the interaction terms, whether the effect is significant or not is still questionable. Second, the data set only contains limited sample size, making examining the effect of interaction terms difficult. As shown in the previous section, only limited interaction terms are included in the model while those interaction terms excluded from the model may also have significant effect.
+
 ```{r}
+#| label: tbl-coef-lasso
+#| fig-cap: Coefficients of lasso regression model
 coef_lasso_tb <- data.frame(Variable = coef_lasso_names, Coefficients = coef_lasso)
-coef_lasso_tb
+coef_lasso_tb %>%
+  kable(format = "latex", booktabs = T) %>%
+  kable_styling(latex_options = "scale_down")
 ```
+
+In conclusion, this project re-evaluates the impact of BA on smoking cessation in MDD patients. The results confirm that BA does not significantly influence smoking cessation, consistent with prior findings. Several baseline predictors, including `ftcd_score`, `NHW`, and `NMR`, demonstrate strong associations with abstinence, while `Age` moderates the effect of pharmacotherapy on cessation. Despite limitations, this model offers valuable insights into the predictors of smoking cessation in MDD patients, highlighting the need for further research to confirm these findings.
+
+## References
+
+::: {#refs}
+:::
 
 ## Code Appendix
 
