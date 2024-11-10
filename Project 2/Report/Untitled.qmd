@@ -2,19 +2,26 @@
 title: "Project 2"
 author: "Zhaoxiang Ding"
 format: pdf
+bibliography: references.bib
+execute:
+  echo: false
+  warning: false
+  message: false
 ---
 
 ## Abstract
 
+Behavioral Activation (BA) has been proposed as a treatment to support smoking cessation in individuals with Major Depressive Disorder (MDD), though evidence regarding its effectiveness remains limited. This study re-evaluates the impact of BA on smoking cessation, utilizing data from a prior 2x2 factorial randomized controlled trial and implementing a novel analytical approach. Our primary objectives are to investigate potential moderators of BA's effect on end-of-treatment (EOT) smoking abstinence and to identify baseline predictors of abstinence while accounting for pharmacotherapy. We adopt a logistic regression framework to estimate the causal effect, examining odds of abstinence rather than abstinence rates, and incorporate interaction terms to capture nuanced treatment effects. Findings confirm that BA does not significantly influence smoking cessation, aligning with prior results. However, several baseline predictors, including ftcd_score, NHW, and NMR, demonstrate strong associations with abstinence, and Age moderates the effect of pharmacotherapy on cessation. While this model offers valuable insights, limitations such as sample size constraints and potential model dependency suggest a need for further research.
+
 ## Introduction
 
-Behavioral activation (BA) has been viewed as a promising treatment to address smoking cessation for individuals with major depressive disorder (MDD),[@]. However, there are only limited study that examine the effect of BA on smoking cessation. @ used a 2 by 2 randomized factorial design to examine the effect of BA on smoking cessation. The study found that BA does not have a significant effect on smoking cessation. In this project, we will re-examine the effect of BA on smoking cessation using the same data from @ with a different approach. 
+Behavioral Activation (BA) is regarded as a promising intervention for aiding smoking cessation in individuals diagnosed with Major Depressive Disorder (MDD), who are known to be more likely to smoke heavily, exhibit greater nicotine dependence, and experience more severe withdrawal symptoms than those without MDD[@Hitsman_2023]. However, there has been limited research examining the specific impact of BA on smoking cessation outcomes. In one study, @Hitsman_2023 employed a 2x2 randomized factorial design (BA versus standard behavioral treatment (ST) and varenicline versus placebo, which is effect drug to help smoking cessation) to investigate this effect, concluding that BA did not significantly improve smoking cessation outcomes. This project aims to revisit the influence of BA on smoking cessation, using the same dataset from @@Hitsman_2023 but with an alternative analytical approach.
 
-The goal of this project is to examine the potiential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy.
+Our objective is to explore potential moderators influencing the effectiveness of behavioral treatment on end-of-treatment (EOT) abstinence rates. Additionally, we seek to identify baseline characteristics that may predict abstinence, while accounting for the effects of behavioral treatment and pharmacotherapy(varenicline).
 
 ## Identifing the causal effect
 
-In @ , work, the casual effect is identified by the difference in the abstinence rate between the treatment group and the control group using intent-to-treat (ITT) principles. Rather than examining the abstinence rate, this project will examine the odds of abstinence, and the causal effect can be identifiled by the odds ratio of abstinence between the treatment group and the control group, using the same ITT principles. The causal effect ($\hat{\tau}$) can be written as:
+In @Hitsman_2023's work, the causal effect was estimated by comparing the abstinence rates between the treatment and control groups, following an intent-to-treat (ITT) approach. Rather than solely examining abstinence rates, this project evaluates the odds of abstinence and estimates the causal effect using the odds ratio of abstinence between the treatment and control groups, while adhering to ITT principles. The causal effect, denoted as $\hat{\tau}$, can be formulated as follows:
 
 $$
 \hat{\tau} = \frac{odds(E[Y^1])}{odds(E[Y^0])}
@@ -44,11 +51,17 @@ data[,-c(num_col, ordinal_col)] <- lapply(data[,-c(num_col, ordinal_col)], facto
 #| tbl-cap: Summary of the data
 data_tbl <- data[, -1]
 data_tbl$group <- paste(data_tbl$Var, data_tbl$BA, sep = "_")
+data_tbl$group <- case_when(data_tbl$group == "0_0" ~ "Control",
+                            data_tbl$group == "1_0" ~ "BA + Placebo",
+                            data_tbl$group == "0_1" ~ "ST + Varenicline",
+                            data_tbl$group == "1_1" ~ "BA + Varenicline")
 data_tbl <- data_tbl[, -c(2,3)]
-tbl_summary(data_tbl, by = group)
+tbl_summary(data_tbl, by = group, type = list(readiness ~ 'continuous')) %>%
+  as_kable()%>%
+  kable_styling(font_size = 10) 
 ```
 
-The data was collected from a 2 by 2 randomized factorial design, thus all the covariates are supposed to be balanced between the treatment group and the control group. @tbl-eda examine the baseline covariates distribution between the treatment group and the control group. The result shows that all the baseline variables are balanced between the treatment group and the control group, indicating that the randomization is successful. The table also shows that there are missing records in the data set. The missingness may not be missing at random, but considering the low percentage of missingness, we believe the missingness will not have a significant effect on the result and consider the missingness as missing at random. Therefor, all the assumption of the causal effect is satisfied and the causal effect can be written as:
+The dataset originates from a 2x2 randomized factorial design, theoretically balancing all covariates across treatment and control groups. As examined in @tbl-eda, baseline covariate distributions confirm that randomization was successful, as covariates appear balanced between groups. The table also reveals some missing data. While the data may not be missing at random, the low proportion of missing records suggests a minimal impact on the results, allowing us to treat the missingness as random. Therefore, the assumptions for identifying causal effects are met, and we express the causal effect as:
 
 $$
 \begin{aligned}
@@ -60,21 +73,20 @@ $$
 Where $A$ is the whether having behavioral treatment or not. A naive approach to estimate the causal effect is to fit a logistic regression model with the treatment group as the only covariate. The causal effect can be estimated by the coefficient of the treatment group. However, this approach does not consider the potential interaction between the treatment group and other covariates, nor the moderation of other variables. In this project, we fit a logistic regression model with the treatment group and the interaction terms between the treatment group and other covariates. The regression model can be written as:
 
 $$
-logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \beta_7X_{ik}X_{-ik}^T
+E[logit(Y_i)] = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7X_{ik}X_{-ik}^T
 $$
-Where $A$ is whether having behavior treatment and $Z$ is whether taking varenicline, $X^T$ is the patient's baseline covariates and $X_{ik}X_{-ik}^T$ is the interaction terms of baseline covariates. The causal effect then can be estimated by the coefficient of the treatment group:
+Where $A$ is whether having behavior treatment and $Z$ is whether taking varenicline, $X^T$ is the patient's baseline covariates and $X_{ik}X_{-ik}^T$ is the interaction terms of baseline covariates with $K$ is the number of interaction terms. The causal effect then can be estimated by the coefficient of the treatment group:
 
 $$
-\begin{aligned}
-\hat{\tau} &=  \beta_1 + \beta_4X_i^T + \beta_6Z_i
-\end{aligned}
+\hat{\tau_i} =  \beta_1 + \beta_4X_i^T + \beta_6Z_i
 $$
 
 Except for identifying the causal effect, this logistic regression model can also be used to examine the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. 
 
 ## Identifing the interactions
 
-  Due to the fact that many variables in the data set are catagorical, including all possible interation terms in the model will result more terms than the sample size, which will cause the model to be overfitting. We will manually select the covariates to include in interaction based on whether the marginal main effects of the covariates are significant or not. 
+Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the significance of their marginal main effects.
+
 ```{r}
 #| label: tbl-contigency
 #| tbl-cap: Contigency table of the data
@@ -82,18 +94,18 @@ tbl_summary(data_tbl[,-23], by = abst, type = list(readiness ~ 'continuous')) %>
   add_p() 
 ```
 
-The contigency table shows that only 3 variables have significant marginal main effects. which are `NHW`, `ftcd_score` and `NMR`. `cpd_ps` has a p-value of 0.052, which is close to 0.05. Considering the fact the psychological variables have already been confirmed to have a significant effect on the outcome, we will include `cpd_ps` in the interaction terms too.
+The contingency table indicates that three variables exhibit significant marginal main effects: `NHW`, `ftcd_score` and `NMR`. `cpd_ps` has a p-value of 0.052, which, combined with established knowledge of the influence of psychological variables on smoking cessation, justifies its inclusion in the interaction terms.
 
 Therefor, the model can be written as:
 
 $$
-logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \beta_7L_kL_{-k}^T
+E[logit(Y_i)] = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7L_kL_{-k}^T
 $$
 Where $L_k$ is the kth significant main effect, and $L_{-k}$ is the rest of the main effects. and $L = \{NHW, \ ftcd\_score,\  NMR,\ cpd\_ps\}$
 
 ## Model selection
 
-As the primary goal of this project is to identify the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. We conducted variable selection process through Lasso regression,  subset selection with L0 penalty and subset selection with ridge regression. We will also fit a ridge regression model for comparison. All four models are trained using 10-fold cross-validation using 80% of the data and tested using the rest 20% of the data. The model with the highest AUC in the test data will be selected as the final model. Missingness in the data is handled by multiple imputation. 
+The primary goal of this project is to identify potential moderators of behavioral treatment effects on EOT abstinence and assess baseline predictors of abstinence, while controlling for behavioral treatment and pharmacotherapy. We explored various variable selection techniques, including Lasso regression, subset selection with an L0 penalty, and ridge regression, all implemented with 10-fold cross-validation on 80% of the data, with testing on the remaining 20%. Multiple imputation addressed missing values in the dataset.
 
 ```{r}
 data_imp <- mice(data[,-1], m = 5, seed = 2550, printFlag = F)
@@ -122,11 +134,12 @@ plot.roc(auc_train_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.
 legend("bottomright", legend = c("Lasso", "Ridge"), col = c("black", "blue"), lty = 1)
 ```
 
-The penalty parameter of both Lasso and Ridge regression is selected by selecting the largest value of parameter such that error is within 1 standard error of the minimum. The result in @fig-lasso shows that Ridge regression has a higher AUC than Lasso regression, indicating a better performance. However, ridge regression do not shrink the coefficients to zero, and thus can not be used to select variables.
+The penalty parameters for both Lasso and Ridge regressions were selected by identifying the largest parameter value within one standard error of the minimum error. As shown in @fig-lasso, Ridge regression achieved a higher AUC than Lasso regression, suggesting stronger performance. However, as Ridge regression does not shrink coefficients to zero, it cannot facilitate variable selection.
 
 ```{r}
 #| label: fig-elbow
 #| fig-cap: Sequences of cross-validation errors of subset selection with L0 penalty and L0L1 penalty 
+par(mfrow=c(2,2))
 set.seed(2550)
 subset_fit = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0", loss = 'Logistic')
 plot(subset_fit$cvMeans[[1]])
@@ -214,3 +227,19 @@ coef_tbl
 
 ## Discussion
 
+The result of this project shows that behaviour treatment has no effect on smoking cessation among MDD patients. This finding corresponds with the result of @, which also found that BA does not have a significant effect on smoking cessation. Possible explanations for this result has already been discussed in @Hitsman_2023.
+
+Several important predictors are identified in this project. `ftcd_score`, `NHW` and `NMR` are predicyors for smoking cessation. `Age` is identified as the moderator of the effect of `Var` on smoking cessation. 
+
+This project has several limitations. First of all, the model selected to use will have a large impact on the result. The subset selection model with L0 and L1 penalty is selected as the best model in this project, but other models may have different results. For example, the lasso regression model shows that behaviour treatment has effect on smoking cessation, and the effect is moderated by `inc` and `bdi score`, but considering the low effect size of the interaction terms, whether the effect is significant or not is still questionable. Second, the data set only contains limited sample size, making examining the effect of interaction terms difficult. As shown in the previous section, only limited interaction terms are included in the model while those interaction terms excluded from the model may also have significant effect.
+```{r}
+coef_lasso_tb <- data.frame(Variable = coef_lasso_names, Coefficients = coef_lasso)
+coef_lasso_tb
+```
+
+## Code Appendix
+
+```{r ref.label = knitr::all_labels()}
+#| echo: true
+#| eval: false
+```
