@@ -107,6 +107,7 @@ Given that many variables in the dataset are categorical, including all possible
 #| label: tbl-contigency
 #| tbl-cap: Contigency table of the data
 # Contigency table
+data_tbl$abst <- factor(data_tbl$abst, levels = c(0,1), labels = c("Stop Smoking", "Continue Smoking"))
 tbl_summary(data_tbl[,-23], by = abst, type = list(readiness ~ 'continuous')) %>%
   add_p() 
 ```
