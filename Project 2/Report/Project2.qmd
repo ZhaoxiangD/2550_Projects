@@ -26,7 +26,7 @@ Our objective is to explore potential moderators influencing the effectiveness o
 In @Hitsman_2023's work, the causal effect was estimated by comparing the abstinence rates between the treatment and control groups, following an intent-to-treat (ITT) approach. Rather than solely examining abstinence rates, this project evaluates the odds of abstinence and estimates the causal effect using the odds ratio of abstinence between the treatment and control groups, while adhering to ITT principles. The causal effect, denoted as $\hat{\tau}$, can be formulated as follows:
 
 $$
-\hat{\tau} = \frac{E[odds(Y^1)]}{E[odds(Y^0)]}
+\hat{\tau} = \frac{odds(E[Y^1])}{odds(E[Y^0])}
 $$
 
 ```{r}
@@ -69,15 +69,15 @@ The dataset originates from a 2x2 randomized factorial design, theoretically bal
 
 $$
 \begin{aligned}
-\hat{\tau} &= \frac{E[odds(Y^1)]}{E[odds(Y^0)])} \\
-&= \frac{E[odds(Y)|A = 1]}{E[odds(Y)|A = 0]}
+\hat{\tau} &= \frac{adds(E[Y^1])}{odds(E[Y^0])} \\
+&= \frac{odds(E[Y|A = 1])}{odds(E[Y|A = 0])}
 \end{aligned}
 $$
 
 Where $A$ is the whether having behavioral treatment or not. A naive approach to estimate the causal effect is to fit a logistic regression model with the treatment group as the only covariate. The causal effect can be estimated by the coefficient of the treatment group. However, this approach does not consider the potential interaction between the treatment group and other covariates, nor the moderation of other variables. In this project, we fit a logistic regression model with the treatment group and the interaction terms between the treatment group and other covariates. The regression model can be written as:
 
 $$
-E[logit(Y_i)] = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7X_{ik}X_{-ik}^T
+logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7X_{ik}X_{-ik}^T
 $$
 Where $A$ is whether having behavior treatment and $Z$ is whether taking varenicline, $X^T$ is the patient's baseline covariates and $X_{ik}X_{-ik}^T$ is the interaction terms of baseline covariates with $K$ is the number of interaction terms. The causal effect then can be estimated by the coefficient of the treatment group:
 
@@ -117,7 +117,7 @@ The contingency table indicates that three variables exhibit significant margina
 Therefor, the model can be written as:
 
 $$
-E[logit(Y_i)] = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7L_kL_{-k}^T
+logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7L_kL_{-k}^T
 $$
 Where $L_k$ is the kth significant main effect, and $L_{-k}$ is the rest of the main effects. and $L = \{NHW, \ ftcd\_score,\  NMR,\ cpd\_ps\}$
 
