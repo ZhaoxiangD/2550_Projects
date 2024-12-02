@@ -33,9 +33,9 @@ main <- function(m){
 
 est_res <- mclapply(1:100, main, mc.cores = 7)
 est_res <- do.call(rbind, est_res)
-write.csv(est_res, "estimation_summary.csv", row.names = FALSE)
+write.csv(est_res, "../Result/estimation_result.csv", row.names = FALSE)
 
 est_summary <- est_res[,.(Bias = mean(beta_hat-10, na.rm = T), MSE = mean((beta_hat - 10)^2, na.rm = T), 
            Var = var(beta_hat, na.rm = T), Coverage = coverage_fun(.SD)), 
         by = .(gamma, sigma, scenario, p, ratio)]
-write.csv(est_summary, "estimation_summary.csv", row.names = FALSE)
+write.csv(est_summary, "../Result/estimation_summary.csv", row.names = FALSE)
