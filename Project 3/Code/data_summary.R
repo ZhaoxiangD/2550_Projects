@@ -13,9 +13,20 @@ estimation_fun <- function(data_sub){
   return(coef(model)[2])
 }
 
+confint_fun <- function(data_sub){
+  model <- lm(Y ~ X, data = data_sub)
+  return(confint(model)[2,])
+}
+
+coverage_fun <- function(data_sub){
+  res <- data_sub[, .(cov = (upper >= 10 & lower <= 10) == 1)]
+  return(mean(res$cov, na.rm = T)*100)
+}
+
 main <- function(m){
   data <- read_data(m)
-  res <- data[, estimation_fun(.SD), by = .(gamma, sigma, scenario, p, ratio)]
+  res <- data[, .(beta_hat = estimation_fun(.SD), lower = confint_fun(.SD)[1], upper = confint_fun(.SD)[2]), 
+              by = .(gamma, sigma, scenario, p, ratio)]
   res$m <- m
   return(res)
 }
@@ -23,3 +34,8 @@ main <- function(m){
 est_res <- mclapply(1:100, main, mc.cores = 7)
 est_res <- do.call(rbind, est_res)
 write.csv(est_res, "estimation_summary.csv", row.names = FALSE)
+
+est_summary <- est_res[,.(Bias = mean(beta_hat-10, na.rm = T), MSE = mean((beta_hat - 10)^2, na.rm = T), 
+           Var = var(beta_hat, na.rm = T), Coverage = coverage_fun(.SD)), 
+        by = .(gamma, sigma, scenario, p, ratio)]
+write.csv(est_summary, "estimation_summary.csv", row.names = FALSE)
