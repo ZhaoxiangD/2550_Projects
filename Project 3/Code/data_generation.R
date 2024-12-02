@@ -11,9 +11,10 @@ data_generate_fun <- function(n_sample, n_cluster, beta, gamma, sigma,p){
     }
     mu <- rnorm(n_sample, 10 + beta*X, sqrt(gamma))
     Y <- rnorm(n_sample, mu, sqrt(sigma))
+    Y_p <- rpois(n_sample, exp(mu))
     cluster <- rep(c, n_sample)
     
-    df <- data.frame(X, Y, mu, alpha, beta, gamma, sigma, cluster)
+    df <- data.frame(X, Y, Y_p, mu, alpha, beta, gamma, sigma, cluster)
     df_all[[length(df_all)+1]] <- df
   }
   return(do.call(rbind, df_all))
@@ -51,7 +52,7 @@ ratio_fun <- function(B, c1, beta,m){
   df_all <- list()
   for (gamma in c(0.5, 1, 2, 10)){
     for (sigma in c(0.5, 1, 2, 10)){
-      for(p in c(0.2, 0.5, 0.8)){
+      for(p in c(0.3, 0.5, 0.7)){
         data <- lapply(c(1,2,5,seq(10,100, by = 10)), function(ratio)
           scenario_fun(B, c1, beta, gamma, sigma, ratio, p)
         )

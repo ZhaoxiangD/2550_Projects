@@ -13,7 +13,6 @@ estimation_fun <- function(data_sub){
   return(coef(model)[2])
 }
 
-
 main <- function(m){
   data <- read_data(m)
   res <- data[, estimation_fun(.SD), by = .(gamma, sigma, scenario, p, ratio)]
