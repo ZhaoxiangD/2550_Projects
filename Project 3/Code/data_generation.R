@@ -20,20 +20,20 @@ data_generate_fun <- function(n_sample, n_cluster, beta, gamma, sigma,p){
   return(do.call(rbind, df_all))
 }
 
-scenario_fun <- function(B, c1, beta, gamma, sigma, ratio, p){
-  c2 <- c1 * ratio
+scenario_fun <- function(B, c2, beta, gamma, sigma, ratio, p){
+  c1 <- c2 * ratio
   data_all <- list()
   for (s in 1:5){
     if (s == 1){
       n_sample <- 1
-      n_cluster <- floor(B/c2)
+      n_cluster <- floor(B/c1)
     } else if (s == 5){
       n_cluster <- 2
-      n_sample <- floor(((B-c2)/c1)/2)
+      n_sample <- floor(((B-c1)/c2)/2)
     } else {
       r <- ifelse(s == 2, 0.5, ifelse(s == 3, 1, 2)) # sample/cluster ratio: scenario 2: 0.5, scenario 3: 1, scenario 4: 2
-      n_cluster_1 <- (-c2 + sqrt((c2)**2 + 4*r*c1*B)) / 2*c1*r
-      n_cluster_2 <- (-c2 - sqrt((c2)**2 + 4*r*c1*B)) / 2*c1*r
+      n_cluster_1 <- (-c1 + sqrt((c1)**2 + 4*r*c2*B)) / 2*c2*r
+      n_cluster_2 <- (-c1 - sqrt((c1)**2 + 4*r*c2*B)) / 2*c2*r
       n_cluster <- floor(max(n_cluster_1, n_cluster_2))
       n_cluster <- ifelse(n_cluster < 2, 2, n_cluster)
       n_sample <- r * n_cluster
@@ -48,13 +48,13 @@ scenario_fun <- function(B, c1, beta, gamma, sigma, ratio, p){
   return(do.call(rbind, data_all))
 }
 
-ratio_fun <- function(B, c1, beta,m){
+ratio_fun <- function(B, c2, beta,m){
   df_all <- list()
   for (gamma in c(0.5, 1, 2, 10)){
     for (sigma in c(0.5, 1, 2, 10)){
       for(p in c(0.3, 0.5, 0.7)){
         data <- lapply(c(1,2,5,seq(10,100, by = 10)), function(ratio)
-          scenario_fun(B, c1, beta, gamma, sigma, ratio, p)
+          scenario_fun(B, c2, beta, gamma, sigma, ratio, p)
         )
         data <- do.call(rbind, data)
         df_all[[length(df_all)+1]] <- data
@@ -68,4 +68,5 @@ ratio_fun <- function(B, c1, beta,m){
   return()
 }
 
+set.seed(2610)
 mclapply(1:100, function(x) ratio_fun(1000, 1, 10,x), mc.cores = getOption("mc.cores", 7L))

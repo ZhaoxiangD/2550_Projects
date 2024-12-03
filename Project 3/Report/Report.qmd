@@ -1,0 +1,79 @@
+---
+title: "project 3"
+format: pdf
+---
+
+## Quarto
+
+Setting B = 1000, and the considering the sceniaro: c2/c1 ranging from 2 to 100, with 5 different cluster senario: 1. each cluster only have 1 sample (500 clusters), 2. only one clusters. 3. number of samples with in cluster is equal to the number of clusters. 4. number of samples with in cluster is half of the number of clusters. 5. number of samples with in cluster is twice the number of clusters. alpha = 10, beta = 10, B = 1000, 
+
+
+
+## EDA
+
+```{r}
+library(ggplot2)
+library(gtsummary)
+res <- read.csv("../Result/estimation_summary.csv")
+```
+
+## Marginal difference
+
+```{r}
+t1 <- tbl_continuous(res, variable = Bias, include = colnames(res)[1:5], label = list(gamma = 'Gamma',
+                                                                                      sigma = 'Sigma',
+                                                                                      scenario = 'Scenario',
+                                                                                      p = 'P',
+                                                                                      ratio = 'Ratio')) %>%
+  add_p() 
+
+t2 <- tbl_continuous(res, variable = MSE, include = colnames(res)[1:5], label = list(gamma = 'Gamma',
+                                                                                      sigma = 'Sigma',
+                                                                                      scenario = 'Scenario',
+                                                                                      p = 'P',
+                                                                                      ratio = 'Ratio')) %>%
+  add_p() 
+
+t3 <- tbl_continuous(res, variable = Var, include = colnames(res)[1:5], label = list(gamma = 'Gamma',
+                                                                                      sigma = 'Sigma',
+                                                                                      scenario = 'Scenario',
+                                                                                      p = 'P',
+                                                                                      ratio = 'Ratio')) %>%
+  add_p() 
+
+t4 <- tbl_continuous(res, variable = Coverage, include = colnames(res)[1:5], label = list(gamma = 'Gamma',
+                                                                                      sigma = 'Sigma',
+                                                                                      scenario = 'Scenario',
+                                                                                      p = 'P',
+                                                                                      ratio = 'Ratio')) %>%
+  add_p()
+
+tbl_merge(list(t1, t2, t3, t4), tab_spanner = c("**Bias**","**MSE**","**Variance**","**Coverage**"))
+```
+
+
+
+## Effect of gamma and sigma
+```{r}
+ggplot(res, aes(x = gamma, y = Bias, color = sigma)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Effect of gamma and sigma on Bias")
+```
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
