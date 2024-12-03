@@ -1,52 +1,94 @@
 library(parallel)
 setwd("/Users/zhaoxiangding/Documents/GitHub/2550_Projects/Project 3/Data")
-data_generate_fun <- function(n_sample, n_cluster, beta, gamma, sigma,p){
-  alpha <- 10
-  df_all <- list()
-  for (c in 1:n_cluster){
-    if (n_cluster == 2 & c == 2){
-      X <- ifelse(df_all[[1]]$X[1] == 1, 0, 1)
-    } else {
-      X <- rbinom(1,1,p)
-    }
-    mu <- rnorm(n_sample, 10 + beta*X, sqrt(gamma))
-    Y <- rnorm(n_sample, mu, sqrt(sigma))
-    Y_p <- rpois(n_sample, exp(mu))
-    cluster <- rep(c, n_sample)
-    
-    df <- data.frame(X, Y, Y_p, mu, alpha, beta, gamma, sigma, cluster)
-    df_all[[length(df_all)+1]] <- df
-  }
-  return(do.call(rbind, df_all))
+
+sample_generation_fun <- function(c, n_sample, alpha, beta, gamma, sigma,p){
+  X <- rbinom(1,1,p)
+  mu <- rnorm(n_sample, alpha + beta*X, sqrt(gamma))
+  Y_N <- rnorm(n_sample, mu, sqrt(sigma))
+  Y_P <- rpois(n_sample, exp(mu))
+  cluster <- rep(c, n_sample)
+  
+  df <- data.frame(X, Y_N, Y_P, alpha, beta, gamma, sigma, p, cluster)
+  return(df)
 }
 
-scenario_fun <- function(B, c2, beta, gamma, sigma, ratio, p){
-  c1 <- c2 * ratio
-  data_all <- list()
-  for (s in 1:5){
-    if (s == 1){
-      n_sample <- 1
-      n_cluster <- floor(B/c1)
-    } else if (s == 5){
-      n_cluster <- 2
-      n_sample <- floor(((B-c1)/c2)/2)
-    } else {
-      r <- ifelse(s == 2, 0.5, ifelse(s == 3, 1, 2)) # sample/cluster ratio: scenario 2: 0.5, scenario 3: 1, scenario 4: 2
-      n_cluster_1 <- (-c1 + sqrt((c1)**2 + 4*r*c2*B)) / 2*c2*r
-      n_cluster_2 <- (-c1 - sqrt((c1)**2 + 4*r*c2*B)) / 2*c2*r
-      n_cluster <- floor(max(n_cluster_1, n_cluster_2))
-      n_cluster <- ifelse(n_cluster < 2, 2, n_cluster)
-      n_sample <- r * n_cluster
-    }
-    
-    data <- data_generate_fun(n_sample, n_cluster, beta, gamma, sigma, p)
-    data$scenario <- s
-    data$ratio <- ratio
-    data$p <- p
-    data_all[[s]] <- data
-  }
-  return(do.call(rbind, data_all))
+
+cluster_generate_fun <- function(n_sample, n_cluster, alpha, beta, gamma, sigma,p){
+  
+  df <- lapply(1:n_cluster, function(c) sample_generation_fun(c, n_sample, alpha, beta, gamma, sigma,p))
+  df <- do.call(rbind, df)
+  df$G <- n_cluster
+  df$R <- n_sample
+  return(df)
 }
+
+grid_search_fun <- function(B, c2, ratio, alpha, beta, gamma, sigma,p){
+  c1 <- c2 * ratio
+  g <- floor(B/c1)
+  g_vec <- 2:g
+  r_vec <- floor((B/g_vec - c1)/c2 + 1)
+  df <- lapply(1:length(g_vec), function(x) cluster_generate_fun(r_vec[x], 
+                                                              g_vec[x], 
+                                                              alpha, 
+                                                              beta, 
+                                                              gamma, 
+                                                              sigma,
+                                                              p))
+  df <- do.call(rbind, df)
+  df$B <- B
+  df$ratio <- ratio
+  df$p <- p
+  df$alpha <- alpha
+  df$beta <- beta
+  df$gamma <- gamma
+  df$sigma <- sigma
+  
+  return(df)
+}
+
+
+
+vary_parm_fun <- function(c2){
+  gamma_vec <- c(0.25, 100)
+  sigma_vec <- c(0.25, 100)
+  p_vec <- c(0.3, 0.7)
+  ratio_vec <- c(10, 50, 100)
+  alpha_vec <- c(10, 50)
+  beta_vec <- c(10, 50)
+  B_vec <- c(2000, 5000)
+  
+  df <- grid_search_fun(1000, c2, 5, 0, 1, 1, 1, 0.5)
+  df_l <- lapply(gamma_vec, function(gamma) grid_search_fun(1000, c2, 5, 0, 1, gamma, 1, 0.5))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  df_l <- lapply(sigma_vec, function(sigma) grid_search_fun(1000, c2, 5, 0, 1, 1, sigma, 0.5))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  df_l <- lapply(p_vec, function(p) grid_search_fun(1000, c2, 5, 0, 1, 1, 1, p))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  df_l <- lapply(ratio_vec, function(ratio) grid_search_fun(1000, c2, ratio, 0, 1, 1, 1, 0.5))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  df_l <- lapply(alpha_vec, function(alpha) grid_search_fun(1000, c2, 5, alpha, 1, 1, 1, 0.5))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  df_l <- lapply(beta_vec, function(beta) grid_search_fun(1000, c2, 5, 0, beta, 1, 1, 0.5))
+  df_l <- do.call(rbind, df_l)
+  df <- rbind(df, df_l)
+  
+  return(df)
+}
+
+c2 <- 1
+start <- Sys.time()
+test_df <- vary_parm_fun(c2)
+time <- Sys.time() - start
 
 ratio_fun <- function(B, c2, beta,m){
   df_all <- list()

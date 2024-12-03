@@ -7,6 +7,15 @@ format: pdf
 
 Setting B = 1000, and the considering the sceniaro: c2/c1 ranging from 2 to 100, with 5 different cluster senario: 1. each cluster only have 1 sample (500 clusters), 2. only one clusters. 3. number of samples with in cluster is equal to the number of clusters. 4. number of samples with in cluster is half of the number of clusters. 5. number of samples with in cluster is twice the number of clusters. alpha = 10, beta = 10, B = 1000, 
 
+## ADEMP
+
+### Aim
+  The goal is to find the optimal combinations of G and R under different c1/c2 ratio and data generation mechanism that minimizes the variance.
+  
+### Data generation
+  
+range B from 1000, 5000, 10000, c1/c2 ratio range from 2, 5, 15, 50. grid search G and R. c1 fixed at 1, alpha range from 0, 10, 50. beta range from 1, 10, 50. sigma and gamma range from (0.25, 1, 100). alpha and beta will not effect the variance of the estimator under linear model, but may effect under poisson model. p range from 0.3, 0.5, 0.7.
+
 
 
 ## EDA
