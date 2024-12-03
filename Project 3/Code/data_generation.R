@@ -85,7 +85,18 @@ vary_parm_fun <- function(c2){
   return(df)
 }
 
-c2 <- 1
+main <- function(c2,m){
+  set.seed(m)
+  data <- vary_parm_fun(c2)
+  data$m <- m
+  return(data)
+}
+
+
+data <- mclapply(1:100, function(x) main(1, x), mc.cores = getOption("mc.cores", 7L))
+data <- do.call(rbind, data)
+write.csv(data, "../Data/data.csv", row.names = FALSE)
+
 start <- Sys.time()
 test_df <- vary_parm_fun(c2)
 time <- Sys.time() - start
