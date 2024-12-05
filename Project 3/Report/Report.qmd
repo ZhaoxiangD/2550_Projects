@@ -41,13 +41,13 @@ res_sum_n_sigma <- res_sum[res_sum$alpha == 1 &
 
 ggplot(res_sum_n_sigma, aes(y = Var_n, x = G, color = as.factor(sigma))) +
   geom_line() +
-  geom_point() +
+  geom_point(size = 0.5) +
   facet_wrap(~ratio, scales = 'free') +
-  labs(title = "Optimal under normal")
+  labs(title = "Distribution of Var_n under different number of clusters")
 
 ggplot(res_sum_n_sigma, aes(y = Var_p, x = G, color = as.factor(sigma))) +
   geom_line() +
-  geom_point() +
+  geom_point(size = 0.5) +
   facet_wrap(~ratio, scales = 'free') +
   labs(title = "Optimal under normal")
 
@@ -57,7 +57,6 @@ ggplot(res_sum_n_sigma, aes(y = Var_p, x = G, color = as.factor(sigma))) +
 res_sum_n_gamma <- res_sum[res_sum$alpha == 1 &
                        res_sum$beta == 1 & 
                        res_sum$sigma == 1 & 
-                       res_sum$p == 0.5 &
                        res_sum$B == 1000,]
 
 ggplot(res_sum_n_gamma, aes(y = Var_n, x = G, color = as.factor(gamma))) +
@@ -70,10 +69,12 @@ ggplot(res_sum_n_gamma, aes(y = Var_p, x = G, color = as.factor(gamma))) +
   facet_wrap(~ratio, scales = 'free') +
   labs(title = "Optimal under normal")
 
+```
+
+```{r}
 res_sum_n_alpha <- res_sum[res_sum$beta == 1 & 
                        res_sum$sigma == 1 & 
                        res_sum$gamma == 1 & 
-                       res_sum$p == 0.5 &
                        res_sum$B == 1000,]
 
 ggplot(res_sum_n_alpha, aes(y = Var_n, x = G, color = as.factor(alpha))) +
@@ -86,12 +87,12 @@ ggplot(res_sum_n_alpha, aes(y = Var_p, x = G, color = as.factor(alpha))) +
   facet_wrap(~ratio, scales = 'free') +
   labs(title = "Optimal under normal")
 
-
+```
+```{r}
 res_sum_b <- res_sum[res_sum$alpha == 1 &
                        res_sum$beta == 1 & 
                        res_sum$sigma == 1 & 
                        res_sum$gamma == 1 &
-                       res_sum$p == 0.5 &
                        res_sum$ratio == 5,]
 
 ggplot(res_sum_b, aes(y = Var_n, x = G, color = as.factor(B))) +
@@ -104,10 +105,12 @@ ggplot(res_sum_b, aes(y = Var_p, x = G, color = as.factor(B))) +
   geom_point() +
   labs(title = "Optimal under normal")
 
+```
+
+```{r}
 res_sum_beta <- res_sum[res_sum$alpha == 1 &
                        res_sum$sigma == 1 & 
                        res_sum$gamma == 1 & 
-                       res_sum$p == 0.5 &
                        res_sum$B == 1000 &
                        res_sum$ratio == 5,]
 

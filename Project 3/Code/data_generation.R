@@ -2,7 +2,7 @@ library(parallel)
 setwd("/Users/zhaoxiangding/Documents/GitHub/2550_Projects/Project 3/Data")
 
 sample_generation_fun <- function(c, X, n_sample, alpha, beta, gamma, sigma){
-  mu <- rnorm(n_sample, alpha + beta*X, sqrt(gamma))
+  mu <- rnorm(1, alpha + beta*X, sqrt(gamma))
   Y_N <- rnorm(n_sample, mu, sqrt(sigma))
   Y_P <- rpois(n_sample, exp(mu))
   cluster <- rep(c, n_sample)
