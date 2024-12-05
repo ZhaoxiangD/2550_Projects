@@ -29,16 +29,6 @@ res$B <- as.factor(res$B)
 res_sum <- read.csv("../Result/estimation_summary.csv")
 ```
 
-### NA value
-
-```{r}
-res_na_n <- res[is.na(res$beta_hat_n),]
-res_na_p <- res[is.na(res$beta_hat_p),]
-tbl_na_n <- tbl_summary(res_na_n, include = colnames(res_na_n)[1:8]) 
-tbl_na_p <- tbl_summary(res_na_p, include = colnames(res_na_n)[1:8]) 
-
-tbl_merge(list(tbl_na_n, tbl_na_p), tab_spanner = c("**Normal**","**Poisson**"))
-```
 
 
 ## Optimal under normal
@@ -47,7 +37,6 @@ tbl_merge(list(tbl_na_n, tbl_na_p), tab_spanner = c("**Normal**","**Poisson**"))
 res_sum_n_sigma <- res_sum[res_sum$alpha == 1 &
                        res_sum$beta == 1 & 
                        res_sum$gamma == 1 & 
-                       res_sum$p == 0.5 &
                        res_sum$B == 1000,]
 
 ggplot(res_sum_n_sigma, aes(y = Var_n, x = G, color = as.factor(sigma))) +
@@ -62,6 +51,9 @@ ggplot(res_sum_n_sigma, aes(y = Var_p, x = G, color = as.factor(sigma))) +
   facet_wrap(~ratio, scales = 'free') +
   labs(title = "Optimal under normal")
 
+```
+
+```{r}
 res_sum_n_gamma <- res_sum[res_sum$alpha == 1 &
                        res_sum$beta == 1 & 
                        res_sum$sigma == 1 & 
