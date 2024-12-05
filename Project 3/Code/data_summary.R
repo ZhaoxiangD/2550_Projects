@@ -90,7 +90,7 @@ main <- function(m){
   data <- read_data(m)
   res <- data[, .(beta_hat_n = as.numeric(estimation_fun_normal(.SD)), 
                   beta_hat_p = as.numeric(estimation_fun_poisson(.SD))),
-              by = .(gamma, sigma, p, ratio, B, G, alpha, beta)]
+              by = .(gamma, sigma, ratio, B, G, alpha, beta)]
   res$m <- m
   return(res)
 }
@@ -99,13 +99,13 @@ main <- function(m){
 #                 beta_hat_p = as.numeric(estimation_fun_poisson(.SD))),
 #             by = .(gamma, sigma, p, ratio, B, G, alpha, beta)]
 
-est_res <- mclapply(1:100, function(x) main(x), mc.cores = 5)
+est_res <- mclapply(1:5, function(x) main(x), mc.cores = 5)
 est_res <- do.call(rbind, est_res)
 write.csv(est_res, "../Result/estimation_result.csv", row.names = FALSE)
 
 est_res <- as.data.table(est_res)
 est_summary <- est_res[,.(Bias_n = mean(beta_hat_n-beta, na.rm = T), 
-                          Var_n = var(beta_hat_n, na.rm = T),
+                          Var_n = sd(beta_hat_n, na.rm = T),
                           Bias_p = mean(beta_hat_p-beta, na.rm = T),
                           Var_p = var(beta_hat_p, na.rm = T)),
                        by = .(gamma, sigma, p, ratio, B, G, alpha, beta)]

@@ -44,10 +44,114 @@ tbl_merge(list(tbl_na_n, tbl_na_p), tab_spanner = c("**Normal**","**Poisson**"))
 ## Optimal under normal
 
 ```{r}
-res_sum_n <- res_sum[res_sum$beta == 10 & res_sum$alpha == 10,]
+res_sum_n_sigma <- res_sum[res_sum$alpha == 1 &
+                       res_sum$beta == 1 & 
+                       res_sum$gamma == 1 & 
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000,]
+
+ggplot(res_sum_n_sigma, aes(y = Var_n, x = G, color = as.factor(sigma))) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+ggplot(res_sum_n_sigma, aes(y = Var_p, x = G, color = as.factor(sigma))) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+res_sum_n_gamma <- res_sum[res_sum$alpha == 1 &
+                       res_sum$beta == 1 & 
+                       res_sum$sigma == 1 & 
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000,]
+
+ggplot(res_sum_n_gamma, aes(y = Var_n, x = G, color = as.factor(gamma))) +
+  geom_line() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+ggplot(res_sum_n_gamma, aes(y = Var_p, x = G, color = as.factor(gamma))) +
+  geom_line() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+res_sum_n_alpha <- res_sum[res_sum$beta == 1 & 
+                       res_sum$sigma == 1 & 
+                       res_sum$gamma == 1 & 
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000,]
+
+ggplot(res_sum_n_alpha, aes(y = Var_n, x = G, color = as.factor(alpha))) +
+  geom_line() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+ggplot(res_sum_n_alpha, aes(y = Var_p, x = G, color = as.factor(alpha))) +
+  geom_line() +
+  facet_wrap(~ratio, scales = 'free') +
+  labs(title = "Optimal under normal")
+
+
+res_sum_b <- res_sum[res_sum$alpha == 1 &
+                       res_sum$beta == 1 & 
+                       res_sum$sigma == 1 & 
+                       res_sum$gamma == 1 &
+                       res_sum$p == 0.5 &
+                       res_sum$ratio == 5,]
+
+ggplot(res_sum_b, aes(y = Var_n, x = G, color = as.factor(B))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Optimal under normal")
+
+ggplot(res_sum_b, aes(y = Var_p, x = G, color = as.factor(B))) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Optimal under normal")
+
+res_sum_beta <- res_sum[res_sum$alpha == 1 &
+                       res_sum$sigma == 1 & 
+                       res_sum$gamma == 1 & 
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000 &
+                       res_sum$ratio == 5,]
+
+ggplot(res_sum_beta, aes(y = Var_n, x = G, color = as.factor(beta))) +
+  geom_line() +
+  labs(title = "Optimal under normal")
+
+ggplot(res_sum_beta, aes(y = Var_p, x = G, color = as.factor(beta))) +
+  geom_line() +
+  labs(title = "Optimal under normal")
+
 ```
 
+```{r}
+res_sum_n_sigma <- res_sum[res_sum$alpha == 1 &
+                       res_sum$beta == 1 & 
+                       res_sum$gamma == 1 &
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000 &
+                       res_sum$ratio == 5,]
 
+ggplot(res_sum_n, aes(y = log(Var_n), x = G, color = as.factor(sigma))) +
+  geom_line() +
+  labs(title = "Optimal under normal")
+
+res_sum_n_gamma <- res_sum[res_sum$alpha == 1 &
+                       res_sum$beta == 1 & 
+                       res_sum$sigma == 1 &
+                       res_sum$p == 0.5 &
+                       res_sum$B == 1000,]
+
+ggplot(res_sum_n, aes(y = log(Var_n), x = G, color = as.factor(gamma))) +
+  geom_line() +
+  labs(title = "Optimal under normal")
+
+```
 
 
 ## Effect of gamma and sigma
