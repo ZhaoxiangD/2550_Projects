@@ -46,8 +46,6 @@ grid_search_fun <- function(B, c2, ratio, alpha, beta, gamma, sigma,p){
   return(df)
 }
 
-
-
 vary_parm_fun <- function(c2){
   gamma_vec <- c(0.25, 100)
   sigma_vec <- c(0.25, 100)
@@ -82,6 +80,10 @@ vary_parm_fun <- function(c2){
   df_l <- do.call(rbind, df_l)
   df <- rbind(df, df_l)
   
+  df_l <- lapply(B_vec, function(B) grid_search_fun(B, c2, 5, 0, 1, 1, 1, 0.5))
+  df_l <- do.call(rbind, df_l)
+  
+  df <- rbind(df, df_l)
   return(df)
 }
 
@@ -89,37 +91,9 @@ main <- function(c2,m){
   set.seed(m)
   data <- vary_parm_fun(c2)
   data$m <- m
-  return(data)
-}
-
-
-data <- mclapply(1:100, function(x) main(1, x), mc.cores = getOption("mc.cores", 7L))
-data <- do.call(rbind, data)
-write.csv(data, "../Data/data.csv", row.names = FALSE)
-
-start <- Sys.time()
-test_df <- vary_parm_fun(c2)
-time <- Sys.time() - start
-
-ratio_fun <- function(B, c2, beta,m){
-  df_all <- list()
-  for (gamma in c(0.5, 1, 2, 10)){
-    for (sigma in c(0.5, 1, 2, 10)){
-      for(p in c(0.3, 0.5, 0.7)){
-        data <- lapply(c(1,2,5,seq(10,100, by = 10)), function(ratio)
-          scenario_fun(B, c2, beta, gamma, sigma, ratio, p)
-        )
-        data <- do.call(rbind, data)
-        df_all[[length(df_all)+1]] <- data
-      }
-    }
-  }
-  df_all <- do.call(rbind, df_all)
-  df_all$M <- m
   file_name <- paste0("../Data/data_", m, ".csv")
-  write.csv(df_all, file_name, row.names = FALSE)
+  write.csv(data, file_name, row.names = FALSE)
   return()
 }
 
-set.seed(2610)
-mclapply(1:100, function(x) ratio_fun(1000, 1, 10,x), mc.cores = getOption("mc.cores", 7L))
+data <- mclapply(1:100, function(x) main(1, x), mc.cores = 5)
