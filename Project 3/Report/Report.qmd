@@ -1,6 +1,9 @@
 ---
-title: "project 3"
+title: "Optimizing Study Design: Balancing Clusters and Measurements for Efficient Estimation in Normal and Poisson Distributions"
+arthor: "Zhaoxiang Ding"
 format: pdf
+date: last-modified
+date-format: "long"
 execute:
   echo: false
   warning: false
@@ -122,8 +125,8 @@ ggarrange(p1, p2, ncol = 1)
 ggplot(res_sum, aes(x = Var_n, y = Var_p)) +
   geom_point()+
   geom_abline(intercept = 0, slope = 1, color = 'grey') +
-  ylab(("Poisson")) +
-  xlab(("Normal")) +
+  ylab(("SE (Poisson)")) +
+  xlab(("SE (Normal)")) +
   labs(title = '') +
   theme_minimal()
 
