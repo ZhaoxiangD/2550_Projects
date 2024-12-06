@@ -31,16 +31,16 @@ When $\sigma^2 \gg \gamma^2$ —indicating that the measurement error is signifi
 
 An ideal study design in such cases would include as many subjects as possible, with each subject being measured multiple times. However, due to resource constraints, this approach is often impractical. Researchers must therefore decide on an optimal balance between the number of subjects sampled and the number of measurements taken per subject to achieve cost-efficient yet accurate results.
 
-Assuming the estimator follows a linear model, the goal of the optimal study design is to minimize the standard error of the estimator under the given resource constraints while maintaining its unbiasedness within the stated hypothesis. This research question can be generalized as follows: Given resource constraints (B), the cost of measuring a new cluster ($c_1$), and the cost of taking an additional measurement within a cluster ($c_2$), how many clusters (G) and how many samples per cluster (R) should be selected to minimize the estimator’s variance?
+Assuming the estimator is a linear model, the goal of the optimal study design is to minimize the standard error of the estimator under the given resource constraints while maintaining its unbiasedness within the stated hypothesis. This research question can be generalized as follows: Given resource constraints (B), the cost of measuring a new cluster ($c_1$), and the cost of taking an additional measurement within a cluster ($c_2$), how many clusters (G) and how many samples per cluster (R) should be selected to minimize the estimator’s standard error?
 
-This project aims to investigate the optimal combination of G and R that minimizes the variance of the estimator under different data generation mechanisms and $c_1$/$c_2$ ratios. Additionally, we will extend our analysis to cases where the outcome follows a Poisson distribution:$Y_{ij}|\mu_i \sim \text{Poisson}(\exp(\mu_i))$, examining the differences between the normal and Poisson cases.
+This project aims to investigate the optimal combination of G and R that minimizes the standard error of the estimator under different data generation mechanisms and $c_1$/$c_2$ ratios. Additionally, we will extend our analysis to cases where the outcome follows a Poisson distribution:$Y_{ij}|\mu_i \sim \text{Poisson}(\exp(\mu_i))$, examining the differences between the normal and Poisson cases.
 
 
 ## Simulation
 
 **Aims**: To investigate the optimal combination of $G$ (number of clusters) and $R$ (number of measurements per cluster) that minimizes the standard error of the estimator under different data generation mechanisms and $c_1/c_2$ ratios.
 
-**Data Generation Mechanisms**: As in the previous section, the data follows a hierarchical model where the treatment is binary, with half of the clusters assigned a treatment value of 1 and the other half assigned a treatment value of 0. The model is defined as:
+**Data Generation Mechanisms**: Similar to the previous section, the data follows a hierarchical model where the treatment assumed to be binary, with half of the clusters assigned a treatment value of 1 and the other half assigned a treatment value of 0. The model is defined as:
 $$
 \begin{aligned}
 X_i &\in {(0,1)} \\
@@ -53,14 +53,19 @@ $$
 
 Where $Y^N$ and $Y^P$ are the outcome under normal and poisson distribution respectively.
 
-Under the normal distribution, the estimator is unbiased, and its variance is influenced by $G$, $R$, $B$ (total resources), the ratio of $c_1/c_2$ (cluster cost vs. measurement cost), and the ratio of $\sigma/\gamma$ (outcome variance vs. measurement error). For the Poisson distribution, the variance of the estimator is also affected by $\alpha$ and $\beta$, as the mean and variance of the Poisson distribution are equal. In both cases, the variance decreases with increasing B, as larger resource allocations allow for more data points.
+Under the normal distribution, the estimator is unbiased, and its standard error is influenced by $G$, $R$, $B$ (total resources), $\sigma$, $\gamma$, and the ratio of $c_1/c_2$ (cluster cost vs. measurement cost). For the Poisson distribution, the variance of the estimator is also affected by $\alpha$ and $\beta$, as the mean and variance of the Poisson distribution are equal. In both cases, the variance decreases with increasing B, as larger resource allocations allow for more data points.
 
 To explore these relationships, we consider the following parameter settings:
-- $B$: 1000, 2000, 5000. Fix $c_1$ = 5, $c_2$ = 1, $\alpha$ = 1, $\beta$ = 1, $\sigma$ = 1, $\gamma$ = 1
-- $\beta$: 1, 2, 5. Fix c1 = 5, c2 = 1, $\alpha$ = 1, $\sigma$ = 1, $\gamma$ = 1, B = 1000
-- $c_1/c_2$: 5, 10, 50, 100. Fix $\beta$ = 1, $B$ = 1000, $c_2$ = 1 with varying $\sigma$ (0.25, 1, 5), $\gamma$ (0.25, 1, 5), and $\alpha$ (0, 1, 5).
 
-Each simulation is replicated 100 times, with input seeds ranging from 1 to 100 for each replication.
+- $B$: 1000, 2000, 5000. Fix $c_1$ = 5, $c_2$ = 1, $\alpha$ = 1, $\beta$ = 1, $\sigma$ = 1, $\gamma$ = 1.    
+
+- $\beta$: 1, 2, 5. Fix c1 = 5, c2 = 1, $\alpha$ = 1, $\sigma$ = 1, $\gamma$ = 1, B = 1000.   
+
+- $c_1/c_2$: 5, 10, 50, 100. Fix $\beta$ = 1, $B$ = 1000, $c_2$ = 1 with varying $\sigma$ (0.25, 1, 5), $\gamma$ (0.25, 1, 5), and $\alpha$ (0, 1, 5).     
+
+We examined the interactions between cost ratio and the parameters $\sigma$, $\gamma$, and $\alpha$ to explore how the cost ratio affects their influence on the standard error of the estimator. These parameters are likely key factors determining the optimal number of clusters and may exhibit sensitivity to changes in the cost ratio.
+
+Each simulation is replicated 100 times, with input random seeds ranging from 1 to 100 correspond to each replication.
 
 **Estimands**: The estimator is the coefficient of the treatment effect in the model.
 
@@ -85,7 +90,7 @@ res$B <- as.factor(res$B)
 res_sum <- read.csv("../Result/estimation_summary.csv")
 ```
 
-The raw simulation results are presented in @fig-eda. The estimated $\beta$ values are centered around the true values of 1, 2, and 5 for both distributions, indicating that the estimator is unbiased. The variance of the estimator is influenced by the number of clusters and the number of measurements per cluster. Moreover, the optimal allocation of clusters and measurements per cluster varies depending on the distribution of the outcome.
+The raw simulation results are presented in @fig-eda. The estimated $\beta$ values are centered around the true values of 1, 2, and 5 for both distributions, indicating that the estimator is unbiased. 
 
 ```{r}
 #| label: fig-eda
@@ -162,7 +167,7 @@ For settings with other $\sigma$ values and cost ratios below 100, the standard 
 
 ```{r}
 #| label: tbl-optimal-sigma
-#| tbl-cap: Optimal number of clusters, cost ratios and $\sigma$ under normal distribution, $B$ = 1000, $\gamma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
+#| tbl-cap: Optimal number of clusters with different cost ratios and $\sigma$ under normal distribution, $B$ = 1000, $\gamma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
 #| 
 sigma_sum <- res_sum_n_sigma %>%
   group_by(ratio, sigma) %>%
@@ -171,7 +176,7 @@ sigma_sum <- res_sum_n_sigma %>%
  
 sigma_sum <- as.data.frame(sigma_sum)
   gt(sigma_sum) %>%
-  tab_header(title = "Optimal number of clusters under normal distribution") %>%
+  tab_header(title = "") %>%
   cols_label(`ratio` = 'Cost Ratio' ,`0.25` = "Sigma = 0.25", `1` = "Sigma = 1", `5` = "Sigma = 5") 
 
 ```
@@ -211,17 +216,17 @@ ggarrange(p1, p2, ncol = 2, common.legend = TRUE)
 
 ```
 
-@fig-gamma presents the standard error of the estimator across different numbers of clusters for both the normal and Poisson distributions, under various $\gamma$ values and cost ratio settings. Unlike previous results, for all $\gamma$ values when the cost ratio is below 10, the standard error decreases monotonically as the number of clusters increases in the normal distribution. However, for cost ratios of 50 and 100, the standard error initially increases before decreasing as the number of clusters grows.
+@fig-gamma presents the standard error of the estimator across different numbers of clusters for both the normal and Poisson distributions, under various $\gamma$ values and cost ratio settings. Unlike previous results, for all $\gamma$ values when the cost ratio is below 10, the standard error decreases monotonically as the number of clusters increases in the normal distribution. However, for cost ratios of 50 and 100, the standard error initially decreases before increasing as the number of clusters grows.
 
 For the Poisson distribution, the trend in the standard error closely resembles the pattern observed in @fig-sigma-normal. The optimal number of clusters for each setting is detailed in @tbl-optimal-gamma_p.
 
 The optimal number of clusters for each setting is summarized in @tbl-optimal-gamma_n and @tbl-optimal-gamma_p. Similar to previous results, the optimal number of clusters under the Poisson distribution is influenced by the cost ratio, with higher ratios requiring fewer clusters to achieve the optimal standard error of the estimator.
 
-However, the results indicate that when $\gamma$ = 1, the optimal number of clusters is lower than when $\gamma$ = 0.25 or $\gamma$ = 5. This finding is inconsistent with theoretical expectations, as a higher $\gamma$ should necessitate more clusters to achieve the optimal standard error. This discrepancy may be attributed to the relatively low number of simulations conducted.
+However, the results indicate that when $\gamma$ = 1, the optimal number of clusters is lower than when $\gamma$ = 0.25 or $\gamma$ = 5. This finding is inconsistent with theoretical expectations, as a higher $\gamma$ should necessitate more clusters to achieve the optimal standard error. This discrepancy may be attributed to the relatively low number of simulations conducted, or extreme cost ratios. Further investigation is required to confirm these results.
 
 ```{r}
 #| label: tbl-optimal-gamma_n
-#| tbl-cap: Optimal number of clusters under normal distribution, cost ratios and $\gamma$. $B$ = 1000, $\sigma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
+#| tbl-cap: Optimal number of clusters under normal distribution with different cost ratios and $\gamma$. $B$ = 1000, $\sigma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
 
 gamma_sum_n <- res_sum_n_gamma %>%
   group_by(ratio, gamma) %>%
@@ -241,7 +246,7 @@ cols_label(`ratio` = 'Cost Ratio' ,`0.25` = "Gamma = 0.25", `1` = "Gamma = 1", `
 ```
 ```{r}
 #| label: tbl-optimal-gamma_p
-#| tbl-cap: Optimal number of clusters under poisson distribution, cost ratios and $\gamma$. $B$ = 1000, $\sigma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
+#| tbl-cap: Optimal number of clusters under poisson distribution with different cost ratios and $\gamma$. $B$ = 1000, $\sigma$ = 1, $\alpha$ = 1, $\beta$ = 1, $c_2$ = 1
 gt(gamma_sum_p) %>%
 tab_header(title = "") %>%
 cols_label(`ratio` = 'Cost Ratio' ,`0.25` = "Gamma = 0.25", `1` = "Gamma = 1", `5` = "Gamma = 5")
@@ -281,7 +286,7 @@ ggarrange(p1, p2, ncol = 2, common.legend = TRUE)
 
 ```
 ```{r}
-#| label: fig-beta
+#| label: fig-B
 #| fig-cap: Estimator's performance with different number of clusters and budget. $\sigma$ = 1, $\gamma$ = 1, $\alpha$ = 1, $c_2$ = 1, Cost ratio = 5
 res_sum_b <- res_sum[res_sum$alpha == 1 &
                        res_sum$beta == 1 & 
@@ -308,10 +313,10 @@ ggarrange(p1, p2, ncol = 2, common.legend = TRUE)
 
 ```
 
-@fig-alpha displays the standard error of the estimator across different numbers of clusters for both the normal and Poisson distributions under various budget settings. The standard error consistently decreases as the number of clusters increases across all budget levels. When the number of clusters reaches its maximum allowable value for a given budget, the standard error for the same number of clusters is lower under a higher budget. This result is expected, as a higher budget enables more samples to be collected.
+@fig-B displays the standard error of the estimator across different numbers of clusters for both the normal and Poisson distributions under various budget settings. The standard error consistently decreases as the number of clusters increases across all budget levels. When the number of clusters reaches its maximum allowable value for a given budget, the standard error for the same number of clusters is lower under a higher budget. This result is expected, as a higher budget enables more samples to be collected.
 
 ```{r}
-#| label: fig-optimal-beta
+#| label: fig-beta
 #| fig-cap: Estimator's performance with different number of clusters and $\beta$. $B$ = 1000, $\sigma$ = 1, $\gamma$ = 1, $\alpha$ = 1, Cost ratio = 5, $c_2$ = 1
 res_sum_beta <- res_sum[res_sum$alpha == 1 &
                        res_sum$sigma == 1 & 
@@ -338,7 +343,7 @@ ggarrange(p1, p2, ncol = 2, common.legend = TRUE)
 
 ```
 
-@fig-beta shows results similar to @fig-alpha, indicating that the standard error of the estimator is not affected by the value of $\beta$ in either distribution.
+@fig-beta shows results similar to @fig-alpha, indicating that the standard error of the estimator is not affected by the value of $\beta$ in either distribution. Which again, is only expected in the normal distribution setting, but not in the Poisson distribution setting.
 
 ## Conclusion
 
