@@ -5,15 +5,23 @@ library(dplyr)
 setwd("/Users/zhaoxiangding/Documents/GitHub/2550_Projects/Project 3/Data")
 
 read_data <- function(m){
+  #' Read data from csv file
+  #' @param m: index of data file
+  #' @return: data table
+
   file_name <- paste0("../Data/data_", m, ".csv")
   data <- fread(file_name)
   return(data)
 }
 
 estimation_fun_normal <- function(data_sub){
+  #' Estimate treatment effect using linear mixed effect model
+  #' @param data_sub: data table
+  #' @return: estimated treatment effect
+
   if (length(unique(data_sub$X)) == 1){
     return(NA)
-  } else if (data_sub$R[1] == 1) {
+  } else if (data_sub$R[1] == 1) { # only one sample in each cluster
     res <- tryCatch({
       model <- lm(Y_N ~ X, data = data_sub)
       coef(model)[2]
@@ -32,10 +40,14 @@ estimation_fun_normal <- function(data_sub){
 }
 
 estimation_fun_poisson <- function(data_sub){
+  #' Estimate treatment effect using generalized linear mixed effect model
+  #' @param data_sub: data table
+  #' @return: estimated treatment effect
+  
   if (length(unique(data_sub$X)) == 1 | length(unique(data_sub$Y_P)) <= 1 | 
-      any(data_sub[,length(unique(as.numeric(Y_P))), by = X][,2] == 1)){
+      any(data_sub[,length(unique(as.numeric(Y_P))), by = X][,2] == 1)){ # only one value in Y_P
     return(NA)
-  } else if (data_sub$R[1] == 1) {
+  } else if (data_sub$R[1] == 1) { # only one sample in each cluster
     res <- tryCatch({
       model <- glm(as.numeric(Y_P) ~ X, data = data_sub, family = poisson())
       coef(model)[2]
@@ -54,39 +66,11 @@ estimation_fun_poisson <- function(data_sub){
   }
 }
 
-confint_fun_normal <- function(data_sub){
-  tryCatch({
-    model <- lmer(Y_N ~ X + (1|cluster), data = data_sub)
-    return(confint(model)[4,])
-  }, error = function(e) {
-    return(numeric())
-  })
-}
-
-confint_fun_poisson <- function(data_sub){
-  tryCatch({
-    model <- glmer(as.numeric(Y_P) ~ X + (1|cluster), data = data_sub, family = poisson())
-    return(confint(model)[3,])
-  }, error = function(e) {
-    return(numeric())
-  })
-}
-
-coverage_fun_normal <- function(data_sub){
-  tryCatch({
-    res <- data_sub[, .(cov = (upper_n >= beta & lower_n <= beta) == 1)]
-    return(mean(res$cov, na.rm = T)*100)
-  }, error = function(e) {
-    return(numeric())
-  })
-}
-
-coverage_fun_poisson <- function(data_sub){
-  res <- data_sub[, .(cov = (upper_p >= beta & lower_p <= beta) == 1)]
-  return(mean(res$cov, na.rm = T)*100)
-}
-
 main <- function(m){
+  #' Main function for estimating treatment effect
+  #' @param m: index of data file
+  #' @return: data table with estimated treatment effect
+  
   data <- read_data(m)
   res <- data[, .(beta_hat_n = as.numeric(estimation_fun_normal(.SD)), 
                   beta_hat_p = as.numeric(estimation_fun_poisson(.SD))),
@@ -94,10 +78,6 @@ main <- function(m){
   res$m <- m
   return(res)
 }
-# 
-# res <- test[, .(beta_hat_n = as.numeric(estimation_fun_normal(.SD)), 
-#                 beta_hat_p = as.numeric(estimation_fun_poisson(.SD))),
-#             by = .(gamma, sigma, p, ratio, B, G, alpha, beta)]
 
 est_res <- mclapply(1:100, function(x) main(x), mc.cores = 5)
 est_res <- do.call(rbind, est_res)

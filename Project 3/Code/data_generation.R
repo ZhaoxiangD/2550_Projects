@@ -2,6 +2,16 @@ library(parallel)
 setwd("/Users/zhaoxiangding/Documents/GitHub/2550_Projects/Project 3/Data")
 
 sample_generation_fun <- function(c, X, n_sample, alpha, beta, gamma, sigma){
+  #' Generate data for a single cluster
+  #' @param c: cluster index
+  #' @param X: treatment indicator
+  #' @param n_sample: number of samples
+  #' @param alpha: intercept
+  #' @param beta: treatment effect
+  #' @param gamma: variance of random effect
+  #' @param sigma: variance of error term
+  #' @return: data frame with generated data
+  
   mu <- rnorm(1, alpha + beta*X, sqrt(gamma))
   Y_N <- rnorm(n_sample, mu, sqrt(sigma))
   Y_P <- rpois(n_sample, exp(mu))
@@ -13,7 +23,16 @@ sample_generation_fun <- function(c, X, n_sample, alpha, beta, gamma, sigma){
 
 
 cluster_generate_fun <- function(n_sample, n_cluster, alpha, beta, gamma, sigma){
-  X <- c(rep(0, n_cluster/2), rep(1, n_cluster/2))
+  #' Generate data for multiple clusters
+  #' @param n_sample: number of samples in each cluster
+  #' @param n_cluster: number of clusters
+  #' @param alpha: intercept
+  #' @param beta: treatment effect
+  #' @param gamma: variance of random effect
+  #' @param sigma: variance of error term
+  #' @return: data frame with generated data
+  
+  X <- c(rep(0, n_cluster/2), rep(1, n_cluster/2)) # first half control, second half treatment
   df <- lapply(1:n_cluster, function(c) sample_generation_fun(c, X[c], n_sample, alpha, beta, gamma, sigma))
   df <- do.call(rbind, df)
   df$G <- n_cluster
@@ -22,8 +41,18 @@ cluster_generate_fun <- function(n_sample, n_cluster, alpha, beta, gamma, sigma)
 }
 
 grid_search_fun <- function(B, c2, ratio, alpha, beta, gamma, sigma){
+  #' Generate data for a setting of parameters
+  #' @param B: Budgets
+  #' @param c2: cost of resampling
+  #' @param ratio: c1/c2 ratio
+  #' @param alpha: intercept
+  #' @param beta: treatment effect
+  #' @param gamma: variance of random effect
+  #' @param sigma: variance of error term
+  #' @return: data frame with generated data
+  
   c1 <- c2 * ratio
-  g <- floor(B/c1)
+  g <- floor(B/c1) # maximum number of clusters
   g_vec <- seq(2,g, by = 2)
   r_vec <- floor((B/g_vec - c1)/c2 + 1)
   df <- lapply(1:length(g_vec), function(x) cluster_generate_fun(r_vec[x], 
@@ -44,6 +73,11 @@ grid_search_fun <- function(B, c2, ratio, alpha, beta, gamma, sigma){
 }
 
 vary_parm_fun <- function(c2){
+  #' Generate data for a range of parameters
+  #' @param c2: cost of resampling
+  #' @return: data frame with all the data
+
+  
   gamma_vec <- c(0.25, 1, 5)
   sigma_vec <- c(0.25, 5)
   ratio_vec <- c(5, 10, 50, 100)
@@ -76,6 +110,11 @@ vary_parm_fun <- function(c2){
 }
 
 main <- function(c2,m){
+  #' Generate data for a simulation
+  #' @param c2: cost of resampling
+  #' @param m: simulation index
+  #' @return: data frame with generated data
+  
   set.seed(m)
   data <- vary_parm_fun(c2)
   data$m <- m
