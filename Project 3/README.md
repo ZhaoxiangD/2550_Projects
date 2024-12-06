@@ -10,26 +10,28 @@ A simulation approach was used to evaluate the performance of the estimator unde
 
 ### Results 
 
-For the normal distribution, the standard error consistently decreased with an increasing number of clusters under most settings, reflecting theoretical expectations. In contrast, for the Poisson distribution, the standard error showed less sensitivity to parameters like $\alpha$, even though theory predicts its influence due to the equality of mean and variance. Unexpectedly, when $\gamma$ = 1, fewer clusters were optimal compared to other $\gamma$ values. Across both distributions, higher budgets led to lower standard errors, as more samples could be coll
-The report can be found [here](Report/Project2.pdf).
+For the normal distribution, the standard error consistently decreased with an increasing number of clusters under most settings, reflecting theoretical expectations. In contrast, for the Poisson distribution, the standard error showed less sensitivity to parameters like $\alpha$, even though theory predicts its influence due to the equality of mean and variance. Unexpectedly, when $\gamma$ = 1, fewer clusters were optimal compared to other $\gamma$ values. Across both distributions, higher budgets led to lower standard errors, as more samples could be collected. These results emphasize the importance of balancing clusters and measurements per cluster to optimize the standard error within resource constraints. However, some deviations from theoretical expectations, particularly in the Poisson distribution, suggest the need for further investigation. The report can be found [here](Report/Report.pdf).
 
 ## Files
 
 ### Code
 
-`Data-Preprocess.R`: Preprocess the data for exploratory data analysis.
+`data_generation.R`: Generate simulation data.
+`data_generation.R`: Estimate treatment effect from the generated datasets.
 
 ### Report
 
-`Project2.qmd`: Quarto mark down version of exploratory data analysis report.
+`Report.qmd`: Quarto mark down version of the report.
 
-`Project2.pdf`: PDF version of exploratory data analysis report.
+`Report.pdf`: PDF version of the report.
 
 ## Dependencies
 
 The following packages were used in this analysis:
 
-- Data Manipulation: `dplyr`
-- Table Formatting: `gtsummary`, `kableExtra`
-- Model Fitting: `glmnet`, `mice`, `pROC`, `L0Learn`
+- Data Manipulation: `dplyr`, `tidyr`, `data.table`
+- Table Formatting: `gtsummary`, `latex2exp`, `gt`
+- Model Fitting: `lme4`
+- Visualization: `ggplot2`, `ggpubr`
+- parallelzation: `parallel`
 
