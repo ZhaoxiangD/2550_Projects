@@ -1,6 +1,6 @@
 ---
 title: "Optimizing Study Design: Balancing Clusters and Measurements for Efficient Estimation in Normal and Poisson Distributions"
-arthor: "Zhaoxiang Ding"
+author: "Zhaoxiang Ding"
 format: pdf
 date: last-modified
 date-format: "long"
