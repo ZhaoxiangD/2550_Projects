@@ -21,8 +21,8 @@ For the normal distribution, the standard error consistently decreased with an i
 
 ### Result
 
-`estimation_result.csv`: Raw result from `data_generation.R`
-`estimation_summary.csv`: Calculated SE and Bias result from `estimation_result.csv`
+`estimation_result.csv`: Raw result from `data_generation.R`.
+`estimation_summary.csv`: Calculated SE and Bias result from `estimation_result.csv`.
 
 ### Report
 
