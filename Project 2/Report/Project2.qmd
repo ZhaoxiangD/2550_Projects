@@ -21,6 +21,36 @@ Behavioral Activation (BA) is regarded as a promising intervention for aiding sm
 
 Our objective is to explore potential moderators influencing the effectiveness of behavioral treatment on end-of-treatment (EOT) abstinence rates. Additionally, we seek to identify baseline characteristics that may predict abstinence, while accounting for the effects of behavioral treatment and pharmacotherapy(varenicline).
 
+## Data collection
+
+The randomized, placebo-controlled trial recruited 300 adult daily smokers with current or past major depressive disorder (MDD) across research clinics at Northwestern University and the University of Pennsylvania. Initial eligibility screening was conducted via telephone, followed by final eligibility screening, informed consent, randomization, and baseline assessment at an intake session. Randomization, stratified by clinical site, sex, and depression severity, ensured balanced treatment arms. Participants were allocated to one of four groups using a computer-based system with unequal block sizes to maximize assignment to varenicline arms. Behavioral treatment sessions were standardized to eight 45-minute sessions over 12 weeks, with medication (varenicline or placebo) administered according to FDA-approved guidelines. Adherence and outcomes were monitored through multiple in-person and remote assessments over 27 weeks, with bio-verified smoking abstinence as a primary measure. Participants received compensation for participation and travel to enhance study retention and compliance.
+
+A total of 25 variables were collected in the study, including demographic information, smoking history, and psychological assessments. Variable details are provided in @tbl-participant-characteristics. The primary outcome of interest was end-of-treatment (EOT) abstinence, defined as self-reported 7-day point prevalence abstinence confirmed by expired carbon monoxide (CO) levels of ≤ 10 ppm. Secondary outcomes included continuous abstinence, time to first lapse, and time to first relapse. 
+
+```{r}
+#| label: tbl-participant-characteristics
+#| tbl-cap: "An overview of participant characteristics"
+
+# Example data frame representing the participant characteristics table
+participant_characteristics <- data.frame(
+  Variable = c("abst", "Var (Varenicline)", "BA (Behavioral Activation)", "age_ps", "sex_ps", "NHW", "Black", "Hisp", 
+               "inc", "edu", "ftcd_score", "ftcd.5.mins", "bdi_score_pq1", "cpd_ps", "crv_total_pq1", "hedonsum_n_pq1", 
+               "hedonsum_y_pq1", "shaps_score_pq1", "otherdiag", "antidepmed", "mde_curr", "NMR", "Only.Menthol", 
+               "readiness"),
+  Description = c("Smoking Abstinence", "Pharmacotherapy", "Psychotherapy", "Age at phone interview", "Sex at phone interview",
+                  "Non-Hispanic White indicator", "Black indicator", "Hispanic indicator", "Income (ordinal categorical, low to high)", 
+                  "Education (ordinal categorical, low to high)", "FTCD score at baseline", "Smoking within 5 mins of waking up",
+                  "BDI score at baseline", "Cigarettes per day at baseline phone survey", "Cigarette reward value at baseline",
+                  "Pleasurable Events Scale at baseline – substitute reinforcers", 
+                  "Pleasurable Events Scale at baseline – complementary reinforcers", "Anhedonia", "Other lifetime DSM-5 diagnosis", 
+                  "Taking antidepressant medication at baseline", "Current vs past MDD", "Nicotine Metabolism Ratio", 
+                  "Exclusive Mentholated Cigarette User", "Baseline readiness to quit smoking")
+)
+
+knitr::kable(participant_characteristics)
+
+```
+
 ## Identifing the causal effect
 
 In @Hitsman_2023's work, the causal effect was estimated by comparing the abstinence rates between the treatment and control groups, following an intent-to-treat (ITT) approach. Rather than solely examining abstinence rates, this project evaluates the odds of abstinence and estimates the causal effect using the odds ratio of abstinence between the treatment and control groups, while adhering to ITT principles. The causal effect, denoted as $\hat{\tau}$, can be formulated as follows:
@@ -28,6 +58,8 @@ In @Hitsman_2023's work, the causal effect was estimated by comparing the abstin
 $$
 \hat{\tau} = \frac{odds(E[Y^1])}{odds(E[Y^0])}
 $$
+
+Where $Y^1$ and $Y^0$ represent the potential outcomes under treatment and control, respectively. 
 
 ```{r}
 library(gtsummary)
@@ -37,6 +69,10 @@ library(pROC)
 library(kableExtra)
 library(dplyr)
 library(L0Learn)
+library(ggpubr)
+library(tidyr)
+library(ggcorrplot)
+library(parallel)
 ```
 
 ```{r}
@@ -49,6 +85,23 @@ data[,ordinal_col] <- lapply(data[,ordinal_col], factor, order = T)
 
 data[,-c(num_col, ordinal_col)] <- lapply(data[,-c(num_col, ordinal_col)], factor)
 ```
+
+
+The dataset originates from a 2x2 randomized factorial design, theoretically balancing all covariates across treatment and control groups. As examined in @tbl-eda, baseline covariate distributions confirm that randomization was successful, as covariates appear balanced between groups. The table also reveals some missing data. While the data may not be missing at random, the low proportion of missing records suggests a minimal impact on the results, allowing us to treat the missingness as random. Therefore, the assumptions for identifying causal effects are met, and we express the causal effect as:
+
+$$
+\begin{aligned}
+\hat{\tau} &= \frac{adds(E[Y^1])}{odds(E[Y^0])} \\
+&= \frac{odds(E[Y|A = 1])}{odds(E[Y|A = 0])}
+\end{aligned}
+$$
+
+Where $A$ is the whether having behavioral treatment or not. A naive approach to estimate the causal effect is to fit a logistic regression model with the treatment group as the only covariate. The causal effect can be estimated by the coefficient of the treatment group. However, this approach does not consider the potential interaction between the treatment group and other covariates, nor the moderation of other variables. In this project, we fit a logistic regression model with the treatment group and the interaction terms between the treatment group and other covariates.
+
+Except for identifying the causal effect, the logistic regression model can also be used to examine the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. 
+
+## Exploratory Data Analysis
+
 ```{r}
 #| label: tbl-eda
 #| tbl-cap: Summary of the data
@@ -60,213 +113,313 @@ data_tbl$group <- case_when(data_tbl$group == "0_0" ~ "Control",
                             data_tbl$group == "0_1" ~ "ST + Varenicline",
                             data_tbl$group == "1_1" ~ "BA + Varenicline")
 data_tbl <- data_tbl[, -c(2,3)]
-tbl_summary(data_tbl, by = group, type = list(readiness ~ 'continuous')) %>%
+data_tbl$inc <- as.numeric(data_tbl$inc)
+data_tbl$edu <- as.numeric(data_tbl$edu)
+tbl_summary(data_tbl, by = group, type = list(readiness ~ 'continuous',
+                                              inc ~ 'continuous',
+                                              edu ~ 'continuous')) %>%
   as_kable_extra(booktabs = TRUE) %>%
   kableExtra::kable_styling(latex_options = "scale_down")
 ```
 
-The dataset originates from a 2x2 randomized factorial design, theoretically balancing all covariates across treatment and control groups. As examined in @tbl-eda, baseline covariate distributions confirm that randomization was successful, as covariates appear balanced between groups. The table also reveals some missing data. While the data may not be missing at random, the low proportion of missing records suggests a minimal impact on the results, allowing us to treat the missingness as random. Therefore, the assumptions for identifying causal effects are met, and we express the causal effect as:
+@tbl-eda summarized the distribution of variables among different groups. Except showing a succeful randomization as discussed in the previous section, the table also shows that the majority of subject did not quit smoking by the end of study.
 
-$$
-\begin{aligned}
-\hat{\tau} &= \frac{adds(E[Y^1])}{odds(E[Y^0])} \\
-&= \frac{odds(E[Y|A = 1])}{odds(E[Y|A = 0])}
-\end{aligned}
-$$
-
-Where $A$ is the whether having behavioral treatment or not. A naive approach to estimate the causal effect is to fit a logistic regression model with the treatment group as the only covariate. The causal effect can be estimated by the coefficient of the treatment group. However, this approach does not consider the potential interaction between the treatment group and other covariates, nor the moderation of other variables. In this project, we fit a logistic regression model with the treatment group and the interaction terms between the treatment group and other covariates. The regression model can be written as:
-
-$$
-logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7X_{ik}X_{-ik}^T
-$$
-Where $A$ is whether having behavior treatment and $Z$ is whether taking varenicline, $X^T$ is the patient's baseline covariates and $X_{ik}X_{-ik}^T$ is the interaction terms of baseline covariates with $K$ is the number of interaction terms. The causal effect then can be estimated by the coefficient of the treatment group:
-
-$$
-\hat{\tau_i} =  \beta_1 + \beta_4X_i^T + \beta_6Z_i
-$$
-
-Except for identifying the causal effect, this logistic regression model can also be used to examine the potential moderators of the effect of behavioral treatment on end-of-treatment (EOT) abstinence and evaluate baseline variables as predictors of abstinence, controlling for behavioral treatment and pharmacotherapy. 
-
-In order to examine the whther linearity assumtpion of the logistic regression model is met, we first examine the distributions of  continuous variables. Most continuous variables are normally distributed except for variable `hedonsum_y_pq1` and `shaps_score_pq1`, as shown in @fig-continuous. We will conduct a log transformation on these two variables to meet the linearity assumption.
+In order to examine the distribution of each variables and their relations with the outcome variable, we first plot the distribution of continuous variables and categorical variables. As shown in @fig-continuous, most continuous variables' distributions have little change between different outcome, except that the peak of `age` and `bdi_score` is lower among subjects who quit smoking (`abst` = 1). The distribution of binary variables also shows little difference between different outcome, except that the among those who take Varenicline, more people quit smoking. It is worth to notice that the distribution of `BA` among different outcome basically the same, bring the question of whether BA has effect on smoking cessation.
 
 ```{r}
 #| label: fig-continuous
 #| fig-cap: Relationship between continuous variables and the outcome variable
+#| fig-subcap: 
+#|   - "Distribution of continuous variables, stratified by outcome (abst)"
+#|   - "Distribution of binary variables, stratified by outcome (abst)"
+#| layout-nrow: 2
+#| fig-height: 3.5
 
 # continuous variables
 par(mfrow=c(2,5))
-data_con <- data[,num_col]
-hist_list <- apply(data_con, 2, function(x) hist(x, breaks = 20, main = '', xlab = ""))
+data_con <- data[,c(num_col)]
+data_con$abst <- data$abst
+data_ord <- data[,ordinal_col]
+data_ord <- apply(data_ord, 2, as.numeric)
+data_con <- cbind(data_con, data_ord)
+data_cat <- data[,-c(num_col, ordinal_col)]
+data_cat <- data_cat[,-1]
+
+pivot_longer(data_con, cols = -abst) %>%
+  ggplot(aes(x = value, fill = abst)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal()
+
+pivot_longer(data_cat, cols = -abst) %>%
+  ggplot(aes(x = value, fill = abst)) +
+  geom_bar() +
+  facet_wrap(~name, scales = "free") +
+  theme_minimal()
+
+
 ```
+
+The correlation among variables are also examined, showed in @tbl-vif. The table shows no variables' VIF bigger than 5, indicating that there is no multicollinearity issue among variables.
+
+```{r}
+#| label: tbl-vif
+#| tbl-cap: Generalized variance inflation factor of the data
+car::vif(glm(abst ~ . -group, data = data_tbl, family = "binomial")) %>%
+  as.data.frame() %>%
+  kable(col.names = 'VIF')
+
+```
+
+There are missingness in the dataset, showed in @tbl-missing. 7 out of 25 variables have missing values, with the highest missing percentage is 7%. Indicated that the missingness is not severe, and can be treated as random missingness.
+
+```{r}
+#| label: tbl-missing
+#| tbl-cap: Missingness of the data
+
+# missingness
+missing_df <- apply(data, 2, function(x) sum(is.na(x)))
+missing_df <- missing_df[missing_df != 0]
+missing_df <- round(missing_df/nrow(data) * 100, 4)
+kable(missing_df, col.names = "Missing Percentage")
+```
+
 
 ## Identifing the interactions
 
-Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the significance of their marginal main effects.
+Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the their VIF. VIF is a measures how much the variance of a estimated regression coefficient due to correlations among preictors. The higher the value, the less benefit of including the variable into interaction terms as the addtional information brought by the interaction terms may have been already captured by the main effect of other predictors. We obly select variables with VIF less than 1.3 to include in the interaction terms. The threshold is set by balancing the trade-off between including more variables and avoiding overfitting, and the gap of VIF values. the selected variables are `readiness`, `antidepmed`, `sex_ps`, `NMR`, `hedonsum_y_pq1` and `otherdiag`, with corresponding VIF values are 1.11 1.12 1.15 1.21 1.23 1.28. Only up to 2 way interaction terms are included in the model, as the number of interaction terms increase exponentially with the number of variables, and the sample size is limited. We also consider the interaction terms between the treatment group and other covariates, as the effect of the treatment group may be moderated by other variables.
 
 ```{r}
-#| label: tbl-contigency
-#| tbl-cap: Contigency table of the data
-# Contigency table
-data_tbl$abst <- factor(data_tbl$abst, levels = c(0,1), labels = c("Stop Smoking", "Continue Smoking"))
-tbl_summary(data_tbl[,-23], by = abst, type = list(readiness ~ 'continuous')) %>%
-  add_p() 
+vif_res <- car::vif(glm(abst ~ . -group, data = data_tbl, family = "binomial"))
+vif_res <- as.data.frame(vif_res)
+vif_res$var <- rownames(vif_res)
+order_vif <- (vif_res[vif_res < 1.3,])
+rownames(order_vif) <- NULL
+order_vif <- order_vif[order(order_vif$vif_res),]
 ```
 
-The contingency table indicates that three variables exhibit significant marginal main effects: `NHW`, `ftcd_score` and `NMR`. `cpd_ps` has a p-value of 0.052, which, combined with established knowledge of the influence of psychological variables on smoking cessation, justifies its inclusion in the interaction terms.
+
 
 Therefor, the model can be written as:
 
 $$
 logit(E[Y_i]) = \beta_0  + \beta_1A_i + \beta_2Z_i + \beta_3X_i^T  + \beta_4X_i^TA_i + \beta_5X_i^TZ_i +\beta_6Z_iA_i + \sum_{k=1}^K\beta_7L_kL_{-k}^T
 $$
-Where $L_k$ is the kth significant main effect, and $L_{-k}$ is the rest of the main effects. and $L = \{NHW, \ ftcd\_score,\  NMR,\ cpd\_ps\}$
+Where $L_k$ is the kth variable with VIF < 1.3 showed in the previous paragraph, and $L_{-k}$ is the rest of the variable with VIF < 1.3
 
 ## Model selection
 
-The primary goal of this project is to identify potential moderators of behavioral treatment effects on EOT abstinence and assess baseline predictors of abstinence, while controlling for behavioral treatment and pharmacotherapy. We explored various variable selection techniques, including Lasso regression, subset selection with an L0 penalty, and ridge regression, all implemented with 10-fold cross-validation on 80% of the data, with testing on the remaining 20%. Multiple imputation addressed missing values in the dataset.
+The primary goal of this project is to identify potential moderators of behavioral treatment effects on end-of-treatment (EOT) abstinence and to assess baseline predictors of abstinence while controlling for behavioral treatment and pharmacotherapy. We employed various variable selection techniques, including Lasso regression and subset selection with L0, L0L1, and L0L2 penalties, all implemented using 10-fold cross-validation.
+
+To address missing values in the dataset, we applied multiple imputation prior to splitting the data into training and testing sets. This approach was chosen due to the limited sample size, as performing imputation after data splitting could lead to unreliable results. We randomly allocated 80% of the records to the training set, reserving the remaining 20% for testing. The models were fitted to the training set of each imputed dataset, and the coefficients were pooled to generate the final results. Variables included in the final model were those that remained in at least 3 out of the 5 imputed datasets.
+
+For subset selection models using L0, L0L1, and L0L2 penalties, the $\lambda$ and $\gamma$ values were chosen to minimize the mean cross-validated error. The coefficients from each model were averaged across imputed datasets to obtain the final results. Using these pooled results, the model was then applied to the test dataset to evaluate its performance.
 
 ```{r}
 #multiple imputation
 data_imp <- mice(data[,-1], m = 5, seed = 2550, printFlag = F)
-data_imp <- complete(data_imp)
-train_index <- sample(1:nrow(data_imp), 0.8*nrow(data_imp))
-train_data <- data_imp[train_index,]
-test_data <- data_imp[-train_index,]
+data_imp <- complete(data_imp, action = 'all')
+train_index <- sample(1:nrow(data), 0.8*nrow(data))
 ```
 
 ```{r}
-#| label: fig-lasso
-#| fig-cap: AUC of Lasso regression and Ridge regression
-# Lasso and ridge regression
-# X <- model.matrix(abst~ . + (NHW + edu + ftcd_score + NMR +
-#                                bdi_score_w00 + mde_curr)^2 + Var*(.) + BA*(.), 
-#                   data = train_data)
-X <- model.matrix(abst ~ . + (NHW + ftcd_score + NMR + cpd_ps)^2 + Var*(.) + BA*(.), 
-                   data = train_data)
-X <- X[,-1]
-Y <- factor(train_data$abst)
-lasso_fit <- cv.glmnet(X, Y, family = "binomial", alpha = 1, type.measure = "auc", nfolds = 10)
-ridge_fit <- cv.glmnet(X, Y, family = "binomial", alpha = 0, type.measure = "auc", nfolds = 10)
-auc_train_l <- roc(train_data$abst, predict(lasso_fit, type = "response", newx = X))
-auc_train_r <- roc(train_data$abst, predict(ridge_fit, type = "response", newx = X))
-plot.roc(auc_train_l, print.auc=TRUE, col = 'black')
-plot.roc(auc_train_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
-legend("bottomright", legend = c("Lasso", "Ridge"), col = c("black", "blue"), lty = 1)
-```
 
-The penalty parameters for both Lasso and Ridge regressions were selected by identifying the largest parameter value within one standard error of the minimum cross validation error. As shown in @fig-lasso, Ridge regression achieved a higher AUC than Lasso regression, suggesting stronger performance. However, as Ridge regression does not shrink coefficients to zero, it cannot facilitate variable selection.
+model_matrix_fun <- function(data, train_id){
+  #' @param data: the data set
+  #' @param train_id: the index of the training set
+  #' @return: a list of model matrix and response variable
+  X <- model.matrix(abst ~ . + (readiness + antidepmed + NMR + sex_ps + 
+                                  hedonsum_y_pq1 + otherdiag)^2 
+                    + Var*(.) + BA*(.), 
+                   data = data[train_id,])
+  X <- X[,-1]
+  Y <- factor(data[train_id,]$abst)
+  
+  return(list(X,Y))
+}
 
-```{r}
-#| label: fig-elbow
-#| fig-cap: Sequences of cross-validation errors of subset selection with L0 penalty and L0L1 penalty 
-#subset selection
-par(mfrow=c(2,2))
+fit_regression <- function(data, train_id){
+  #' @param data: the data set
+  #' @param train_id: the index of the training set
+  #' @return: a list of the coefficients of the model
+  
+  model_data <- model_matrix_fun(data, train_id)
+  
+  #model fitting
+  lasso_fit <- cv.glmnet(model_data[[1]], model_data[[2]], family = "binomial", 
+                         alpha = 1, type.measure = "auc", 
+                         nfolds = 10)
+
+  subset_fit <- L0Learn.cvfit(model_data[[1]], model_data[[2]], 
+                              nFolds=10, penalty="L0", loss = 'Logistic')
+  subset01_fit <- L0Learn.cvfit(model_data[[1]], model_data[[2]], 
+                                nFolds=10, penalty="L0L1", loss = 'Logistic')
+  subset02_fit <- L0Learn.cvfit(model_data[[1]], model_data[[2]], 
+                                nFolds=10, penalty="L0L2", loss = 'Logistic')
+  
+  var_names <- rownames(coef(lasso_fit))
+  lasso_coef_id <- which(coef(lasso_fit) != 0)
+  lasso_res <- data.frame(var_names[lasso_coef_id], coef(lasso_fit)[lasso_coef_id])
+  
+  # choose gamma and lambda so that cvmeans are minimized
+  min_l_subset <- which.min(subset_fit$cvMeans[[1]])
+  subset_id <- coef(subset_fit, subset_fit$fit$lambda[[1]][min_l_subset], 0)
+  id <- which(subset_id != 0)
+  subset_res <- data.frame(var_names[id], subset_id[id])
+  
+  min_l_subset01 <- sapply(1:10, function (x) which.min(subset01_fit$cvMeans[[x]]))
+  min_g_subset01 <- sapply(1:10, function (x) subset01_fit$cvMeans[[x]][[min_l_subset01[x]]])
+  gamma_id <- which.min(min_g_subset01)
+  min_lambda <- min(min_g_subset01)
+  
+  subset01_coef <- coef(subset01_fit,
+                        min_lambda, 
+                        subset01_fit$fit$gamma[gamma_id])
+  id <- which(subset01_coef != 0)
+  
+  subset01_res <- data.frame(var_names[id], 
+                             subset01_coef[id])
+  
+  
+  min_l_subset02 <- sapply(1:10, function (x) which.min(subset02_fit$cvMeans[[x]]))
+  min_g_subset02 <- sapply(1:10, function (x) subset02_fit$cvMeans[[x]][[min_l_subset02[x]]])
+  gamma_id <- which.min(min_g_subset02)
+  min_lambda <- min(min_g_subset02)
+  subset02_coef <- coef(subset02_fit,
+                        min_lambda, 
+                        subset02_fit$fit$gamma[gamma_id])
+  id <- which(subset02_coef != 0)
+  subset02_res <- data.frame(var_names[id], 
+                             subset02_coef[id])
+  
+  
+  return(list(lasso_res, subset_res, subset01_res, subset02_res))
+}
 set.seed(2550)
-subset_fit = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0", loss = 'Logistic')
-plot(subset_fit$cvMeans[[1]], ylab = "CV error", main = "L0 penalty", cex.main = 0.5)
-subset_fit1 = L0Learn.cvfit(X, Y, nFolds=10, penalty="L0L1", loss = 'Logistic')
-plot(sapply(subset_fit1$cvMeans, mean), ylab = "CV error", main = "L0L1 Penalty, Gamma", cex.main = 0.5) # choose gamma
-plot(subset_fit1$cvMeans[[3]], ylab = "CV error", main = "L0L1 Penalty, Lambda", cex.main = 0.5) # choose lambda
-#coef(subset_fit, subset_fit$fit$lambda[[1]][10], 0)
-#coef(subset_fit1, subset_fit1$fit$lambda[[4]][10], subset_fit1$fit$gamma[4])
+
+fit_res <- mclapply(1:5, function(x) fit_regression(data_imp[[x]], train_index), 
+                    mc.cores = 5)
+
+#choose variable and pooled the result
+lasso_var <- sapply(1:5, function(x) fit_res[[x]][[1]][,1])
+lasso_var <- as.factor(unlist(lasso_var))
+lasso_res <- lapply(1:5, function(x) fit_res[[x]][[1]])
+lasso_res <- do.call(rbind, lasso_res)
+#summary(lasso_var)
+
+lasso_coef <- data.frame(var = c('Intercept', 'Var1:age_ps', 'Var1:NMR'),
+                         value = c(mean(lasso_res[lasso_res$var_names.lasso_coef_id. == '(Intercept)',2]),
+                                   mean(lasso_res[lasso_res$var_names.lasso_coef_id. == 'Var1:age_ps',2]),
+                                   mean(lasso_res[lasso_res$var_names.lasso_coef_id. == 'Var1:NMR',2])))
+
+subset_var <- sapply(1:5, function(x) fit_res[[x]][[2]][,1])
+subset_var <- as.factor(unlist(subset_var))
+subset_res <- lapply(1:5, function(x) fit_res[[x]][[2]])
+subset_res <- do.call(rbind, subset_res)
+#summary(subset_var)
+subset_coef <- data.frame(var = c('Intercept', 'ftcd_score', 'NHW1', 'Var1:age_ps'),
+                         value = c(mean(subset_res[subset_res$var_names.id. == '(Intercept)',2]),
+                                   mean(subset_res[subset_res$var_names.id. == 'ftcd_score',2]),
+                                   mean(subset_res[subset_res$var_names.id. == 'NHW1',2]),
+                                   mean(subset_res[subset_res$var_names.id. == 'Var1:age_ps',2])))
+
+subset01_var <- sapply(1:5, function(x) fit_res[[x]][[3]][,1])
+subset01_var <- as.factor(unlist(subset01_var))
+subset01_res <- lapply(1:5, function(x) fit_res[[x]][[3]])
+subset01_res <- do.call(rbind, subset01_res)
+#summary(subset01_var)
+subset01_coef <- data.frame(var = c('Intercept', 'BA1:bdi_score_w00', 'ftcd_score', 'Var1:age_ps'),
+                         value = c(mean(subset01_res[subset01_res$var_names.id. == '(Intercept)',2]),
+                                   mean(subset01_res[subset01_res$var_names.id. == 'BA1:bdi_score_w00',2]),
+                                   mean(subset01_res[subset01_res$var_names.id. == 'ftcd_score',2]),
+                                   mean(subset01_res[subset01_res$var_names.id. == 'Var1:age_ps',2])))
+
+subset02_var <- sapply(1:5, function(x) fit_res[[x]][[4]][,1])
+subset02_var <- as.factor(unlist(subset02_var))
+subset02_res <- lapply(1:5, function(x) fit_res[[x]][[4]])
+subset02_res <- do.call(rbind, subset02_res)
+#summary(subset02_var)
+subset02_coef <- data.frame(var = c('Intercept', 'antidepmed1:NMR', 'BA1:bdi_score_w00', 'BA1:inc.L',
+                                    'ftcd_score', 'mde_curr1', 'NHW1', 'Var1:age_ps', 'Var1:Black1'),
+                         value = c(mean(subset02_res[subset02_res$var_names.id. == '(Intercept)',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'antidepmed1:NMR',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'BA1:bdi_score_w00',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'BA1:inc.L',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'ftcd_score',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'mde_curr1',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'NHW1',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'Var1:age_ps',2]),
+                                   mean(subset02_res[subset02_res$var_names.id. == 'Var1:Black1',2])))
+
 ```
-
-The penalty parameter of subset selection with L0 penalty and L0L1 penalty is selected by selecting the elbow point of the cross-validation errors. As shown in @fig-elbow, the parameter for L0 penalty is the 20th lambda value(0.356). The parameter for L1 penalty of L0L1 penalty is the 3rd gamma value(0.244) and the parameter for L0 penalty of L0L1 penalty is the 10th lambda value(1.140).
-
-```{r}
-#| label: fig-roc-01
-#| fig-cap: AUC of subset selection with L0 penalty and L0L1 penalty
-# subset regression auc
-auc_train_sub0 <- roc(train_data$abst, as.numeric(predict(subset_fit, 
-                                                          type = "response",
-                                                          newx = X, 
-                                                          subset_fit$fit$lambda[[1]][20], 
-                                                          0)))
-auc_train_sub1 <- roc(train_data$abst, as.numeric(predict(subset_fit1, 
-                                                          type = "response",
-                                                          newx = X, 
-                                                          subset_fit1$fit$lambda[[3]][10], 
-                                                          subset_fit1$fit$gamma[3])))
-plot.roc(auc_train_sub0, print.auc=TRUE, col = 'red')
-plot.roc(auc_train_sub1, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
-legend("bottomright", legend = c("L0", "L0L1"), col = c("red", "green"), lty = 1)
-```
-
-@fig-roc-01 shows that subset selection with L0 penalty has a higher AUC than subset selection with L0L1 penalty, indicating that subset selection with L0 penalty has a better performance.
 
 ```{r}
 #| label: fig-roc-test
-#| fig-cap: AUC of four models in test data
-# model performance in test data
-test_X <- model.matrix(abst~ . + (NHW + ftcd_score + NMR + cpd_ps)^2 + Var*(.) + BA*(.), 
-                   data = test_data)
-test_X <- test_X[,-1]
-test_Y <- factor(test_data$abst)
+#| fig-cap: ROC curves of the models in test data
 
-auc_test_l <- roc(test_Y, predict(lasso_fit, type = "response", newx = test_X))
-auc_test_r <- roc(test_Y, predict(ridge_fit, type = "response", newx = test_X))
-auc_test_sub0 <- roc(test_Y, as.numeric(predict(subset_fit, 
-                                                          type = "response",
-                                                          newx = test_X, 
-                                                          subset_fit$fit$lambda[[1]][20], 
-                                                          0)))
-auc_test_sub1 <- roc(test_Y, as.numeric(predict(subset_fit1, 
-                                                          type = "response",
-                                                          newx = test_X, 
-                                                          subset_fit1$fit$lambda[[3]][10], 
-                                                          subset_fit1$fit$gamma[3])))
+# test data set
+test_data <- lapply(1:5, function(x) data_imp[[x]][-train_index,])
+test_data <- do.call(rbind, test_data)
+
+# fit model on test dataset
+lasso_x <- model.matrix(abst ~ Var:age_ps + Var:NMR, data = test_data)
+lasso_x <- lasso_x[,c(1,3,5)]
+t <- lasso_coef$value %*% t(lasso_x)
+lasso_p <- exp(t)/(1+exp(t))
+auc_test_l <- roc(test_data$abst, lasso_p)
+
+subset_x <- model.matrix(abst ~ ftcd_score + NHW + Var:age_ps, data = test_data)
+subset_x <- subset_x[,-4]
+t <- subset_coef$value %*% t(subset_x)
+subset_p <- exp(t)/(1+exp(t))
+auc_test_sub <- roc(test_data$abst, subset_p)
+
+subset01_x <- model.matrix(abst ~ BA:bdi_score_w00 + ftcd_score + Var:age_ps, data = test_data)
+subset01_x <- subset01_x[,c(1,2,4,6)]
+t <- subset01_coef$value %*% t(subset01_x)
+subset01_p <- exp(t)/(1+exp(t))
+auc_test_sub01 <- roc(test_data$abst, subset01_p)
+
+subset02_x <- model.matrix(abst ~ antidepmed:NMR + BA:bdi_score_w00 + BA:inc + ftcd_score + mde_curr + NHW + Var:age_ps + Var:Black, data = test_data)
+subset02_x <- subset02_x[,-c(5,7,9,11,13,15,17,19)]
+subset02_x <- subset02_x[,-c(8:10)]
+t <- subset02_coef$value %*% t(subset02_x)
+subset02_p <- exp(t)/(1+exp(t))
+auc_test_sub02 <- roc(test_data$abst, subset02_p)
+
+saveRDS(list(lasso_coef, subset_coef, subset01_coef, subset02_coef), "coef.rds")
+
 plot.roc(auc_test_l, print.auc=TRUE, col = 'black')
-plot.roc(auc_test_r, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
-plot.roc(auc_test_sub0, print.auc=TRUE, col = 'red', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.3)
-plot.roc(auc_test_sub1, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.2)
-legend("bottomright", legend = c("Lasso", "Ridge", "L0", "L0L1"), col = c("black", "blue","red", "green"), lty = 1)
+plot.roc(auc_test_sub, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
+plot.roc(auc_test_sub01, print.auc=TRUE, col = 'red', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.3)
+plot.roc(auc_test_sub02, print.auc=TRUE, col = 'green', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.2)
+legend("bottomright", legend = c("Lasso", "L0", "L0L1", "L0L2"), col = c("black", "blue","red", "green"), lty = 1)
 
 ```
 
-@fig-roc-test shows the models' performance in test data. Subset selection model with L0 and L1 penalty have the highest AUC among all models, indicating the model is robust. It is worth to notice that lasso regression, eventhough have a lower AUC than subset selection with ridge regression, performs better for the purpose of hight sensitivity. Based on this result, we use the model with both L0 and L1 penalty to answer our research question. The result of the model is shown in @tbl-coef. The model exclude all but 3 terms, including all terms with behaviour treatment. Indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. 
 
-Eventhough the model shows that behaviour treatment has no effect on smoking cessation, it can still help us to identify important predictors. `ftcd_score` can served as a good predictor for smoking cessation, with one unit increase will decrease the odds of quitting smoking by 20%. `NHW` and `NMR` are also valid predictor. With in non hispanic white population, one unite increase in NMR will increase the odds of quitting smoking by 300%. Age is only a significant predictor among people who take varenicline, with 1 year increase in age will increase the odds of quitting smoking by 2%.
+@fig-roc-test shows the all four models' performance in test data. Subset selection model with L0 penalty have the highest AUC among all models, indicating the model is robust. Based on this result, we use the model with L0 penalty to answer our research question. The model exclude all but 3 terms: `NHW1`, `ftcd_score` and `Var1:age_ps`. All terms with behaviour treatment are excluded from the model, indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. We will fit a logistic regression model with the selected terms to examine the effect of the predictors on smoking cessation. As shown in @tbl-regression, the model shows being a non hispanic white(`NHW` = 1) will increase the odds of quitting smoking by 161%, and one unit increase in FTCD score at baseline (`ftcd_score`) will decrease the odds of quitting smoking by 25%. The mean effect of `Var` on smoking cessation is negative, but considering the interaction terms, the effect of `Var` on smoking cessation positive when the subject is over 15 years old. Considering the minimum age in the dataset is 19, exploring the effect of `Var` on smoking cessation among people with age less than 19 is merely expectorating the model and is not meaningful. Taking varenicline(Var = 1) for a subject with 20 years of old will increase the odds of quitting smoking by 24%. When the subject is 40 years of old, the increase of odds is 177%. Indicating the effect is more significant among older people. However, as the p value of both the main effects and the interaction terms are not significant, the effect of `Var` on smoking cessation is still questionable.
 
 ```{r}
-#| label: tbl-coef
-#| fig-cap: Coefficients of best model
-# model's result
-coef_l0 <- coef(subset_fit1, subset_fit1$fit$lambda[[3]][10], subset_fit1$fit$gamma[3])
-coef_l0_names <- row.names(coef(lasso_fit))
-coef_l0_index <- which(coef_l0 != 0)
-coef_l0 <- coef_l0[coef_l0_index]
-coef_l0_names <- coef_l0_names[coef_l0_index]
+#| label: tbl-regression
+#| fig-cap: Coefficients of the best model
 
-coef_lasso <- coef(lasso_fit)
-coef_lasso_names <- row.names(coef_lasso)
-coef_lasso_index <- which(coef_lasso != 0)
-coef_lasso <- coef_lasso[coef_lasso_index]
-coef_lasso_names <- coef_lasso_names[coef_lasso_index]
-
-coef_tbl <- data.frame(Variable = coef_l0_names, Coefficients = coef_l0)
-coef_tbl %>%
-  kable(format = "latex", booktabs = T) %>%
-  kable_styling(latex_options = "scale_down")
+mod <- glm(abst ~ NHW + ftcd_score + Var*age_ps, data = data, family = "binomial")
+tbl_regression(mod)
 ```
+
+
+There for, we can conclude that both non hispanic white (`NHW`) and FTCD score at baseline (`ftcd_score`) are predictors for smoking cessation, with being a non hispanic white will increase the odds of quitting smoking, and higher FTCD score at baseline will decrease the odds of quitting smoking. The effect of `Var` on smoking cessation is postive and  moderated by `age`, with the older the subject is, the more significant the effect is. However, the effect of `Var` on smoking cessation is still questionable as the p value indicates the effect may not be significant.
 
 ## Discussion
 
-The result of this project shows that behaviour treatment has no effect on smoking cessation among MDD patients. This finding corresponds with the result of @, which also found that BA does not have a significant effect on smoking cessation. Possible explanations for this result has already been discussed in @Hitsman_2023.
+The result of this project shows that behaviour treatment has no effect on smoking cessation among MDD patients. This finding corresponds with the result of @Hitsman_2023, which also found that BA does not have a significant effect on smoking cessation. Possible explanations for this result has already been discussed in @Hitsman_2023.
 
-Several important predictors are identified in this project. `ftcd_score`, `NHW` and `NMR` are predicyors for smoking cessation. `Age` is identified as the moderator of the effect of `Var` on smoking cessation. 
+Two important predictors are identified in this project. `ftcd_score` and `NHW` are predictors for smoking cessation. `Age` is identified as the moderator of the effect of `Var` on smoking cessation. 
 
-This project has several limitations. First of all, the model selected to use will have a large impact on the result. The subset selection model with L0 and L1 penalty is selected as the best model in this project, but other models may have different results. For example, the lasso regression model(@tbl-coef-lasso) shows that behaviour treatment has effect on smoking cessation, and the effect is moderated by `inc` and `bdi score`, but considering the low effect size of the interaction terms, whether the effect is significant or not is still questionable. Second, the data set only contains limited sample size, making examining the effect of interaction terms difficult. As shown in the previous section, only limited interaction terms are included in the model while those interaction terms excluded from the model may also have significant effect.
+This project has several limitations. First of all, the model selected to use will have a large impact on the result. The subset selection model with L0 penalty is selected as the best model in this project, but other models may have different results. Second, the data set only contains limited sample size, making examining the effect of interaction terms difficult. As shown in the previous section, only limited interaction terms are included in the model while those interaction terms excluded from the model may also have significant effect.
 
-```{r}
-#| label: tbl-coef-lasso
-#| fig-cap: Coefficients of lasso regression model
-coef_lasso_tb <- data.frame(Variable = coef_lasso_names, Coefficients = coef_lasso)
-coef_lasso_tb %>%
-  kable(format = "latex", booktabs = T) %>%
-  kable_styling(latex_options = "scale_down")
-```
-
-In conclusion, this project re-evaluates the impact of BA on smoking cessation in MDD patients. The results confirm that BA does not significantly influence smoking cessation, consistent with prior findings. Several baseline predictors, including `ftcd_score`, `NHW`, and `NMR`, demonstrate strong associations with abstinence, while `Age` moderates the effect of pharmacotherapy on cessation. Despite limitations, this model offers valuable insights into the predictors of smoking cessation in MDD patients, highlighting the need for further research to confirm these findings.
+In conclusion, this project re-evaluates the impact of BA on smoking cessation in MDD patients. The results confirm that BA does not significantly influence smoking cessation, consistent with prior findings. Two baseline predictors, including `ftcd_score` and `NHW`, demonstrate strong associations with abstinence, while `Age` moderates the effect of pharmacotherapy on cessation. Despite limitations, this model offers valuable insights into the predictors of smoking cessation in MDD patients, highlighting the need for further research to confirm these findings.
 
 ## References
 

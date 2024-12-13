@@ -102,7 +102,7 @@ ggplot(data_record, aes(x = Age..yr., y = Time, color = as.factor(Sex))) +
 
 sex_label <- c(`0` = 'Female', `1` = 'Male')
 
-ggplot(data_record, aes(x = Age..yr., y = X.CR)) + 
+p1 <- ggplot(data_record, aes(x = Age..yr., y = X.CR)) + 
   geom_point(aes(color = as.factor(Flag)),
              size = 0.05, alpha = 0.2, position = position_jitter(width = 1)) +
   geom_vline(xintercept = c(26, 52, 75), linetype = 'dashed') +
@@ -117,6 +117,8 @@ ggplot(data_record, aes(x = Age..yr., y = X.CR)) +
   facet_wrap(~Sex, labeller = as_labeller(sex_label)) +
   theme_minimal() + 
   theme(strip.text = element_text(face = 'bold'))
+
+ggsave('Fig1.svg', p1)
 ####
 record_flag <- left_join(record, data[,1:4], by = c('Race', 'Year', 'Sex'))
 record_flag <- record_flag[!is.na(record_flag$Flag),]
@@ -221,7 +223,7 @@ data_record_weight$Avg_Cr_Diff <- (data_record_weight$X.CR -
 data_record_weight$Sex <- ifelse(data_record_weight$Sex == 1, 'Male', 'Female')
 
 # Fig 4
-data_record_weight %>%
+p2 <- data_record_weight %>%
   group_by(Sex, Age..yr., Flag) %>%
   summarise(mean_cr = mean(Avg_Cr_Diff)) %>%
   ggplot(aes(x = Age..yr., y = mean_cr, color = as.factor(Flag))) +
@@ -231,6 +233,8 @@ data_record_weight %>%
                      name = 'Weather Flag') +
   scale_y_continuous(name = 'Normalized Difference') +
   scale_x_continuous(name = 'Age (Year)') +
-  facet_wrap(~Sex, labeller = as_labeller(sex_label))+
+  facet_wrap(~Sex) +
   theme_minimal() + 
   theme(strip.text = element_text(face = 'bold'))
+
+ggsave('Fig2.svg', p2)

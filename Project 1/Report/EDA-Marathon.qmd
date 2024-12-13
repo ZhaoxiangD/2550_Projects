@@ -1,8 +1,9 @@
 ---
-title: "Exploriatry data analysis on impact of weather on marathon performance across age and gender"
+title: "Exploratory data analysis on impact of weather on marathon performance across age and gender"
 format: pdf
 author: Zhaoxiang Ding
 date: last-modified
+bibliography: references.bib
 date-format: "long"
 execute:
   echo: false
@@ -27,9 +28,9 @@ library(gridExtra)
 
 ## Introduction
 
-Marathon running is a physically demanding sport which requires a combination of endurance, strength, and mental fortitude. It was well known that aging can effect reduced ability to tolerate heat stress in older individuals by effecting the body's ability to regulate temperature. Bad weather conditions, such as high temperature, humidity, and solar radiation, can also have a negative impact on marathon performance by reducing the body's ability to release heat. While age and weather conditions are known to influence athletic performance, their effects on marathon runners, especially in terms of gender differences, remain understudied. 
+Marathon running is a physically demanding sport which requires a combination of endurance, strength, and mental fortitude. Runners characteristics shaped the performance as Men are more likely than women to slow over the course of a marathon[@DEANER_2015]. And older runners tend to have less pace variance in a marathon than younger runners[@Nikolaidis_2017]. Research has shown adverse weather condition(High temperature, humidity, etc) can have a negative impact on marathon performance on both elite[@Knechtle_2021] and recreational runners[@ELY_2007]. But the effect diminish among females compare to male[@Vihma_2009]. One of the many reasons that explaine the negative relation between weather condition and marathon performance is that the body's ability to release heat is reduced in hot environments, which can lead to heat stress and reduce the body's ability to perform at its best. 
 
-This report aim to examine effects of increasing age on marathon performance in men and women, explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender, identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance and evaluate the impact of air quality on marathon performance. The analysis is carried out in R (version 4.4.0) using `ggplot2`, `dplyr`, `lubridate`, `kableExtra`, `gtsummary`, `stringr`, `ggpubr`, `RColorBrewer`, `gridExtra` and `latex2exp` packages.
+This report aim to examine effects of increasing age on marathon performance in men and women by using percentage off record as the measurement metrics, explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender, identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance and evaluate the impact of air quality on marathon performance. The analysis is carried out in R (version 4.4.0) using `ggplot2`, `dplyr`, `lubridate`, `kableExtra`, `gtsummary`, `stringr`, `ggpubr`, `RColorBrewer`, `gridExtra` and `latex2exp` packages.
 
 ## Data collection and preprocessing
 
@@ -49,8 +50,8 @@ colnames(data)[[1]] <- 'Race'
 colnames(data)[[3]] <- 'Sex'
 
 # Table 1
-table(data$Flag) %>%
-  kable(col.names = c('Flag', 'Count')) %>%
+round(table(data$Flag)/sum(table(data$Flag)) * 100,2) %>%
+  kable(col.names = c('Flag', 'Percentage (%)')) %>%
   kable_styling()
 ```
 
@@ -75,11 +76,11 @@ colnames(na_df) <- c('Race', 'Year')
 #   kable_styling()
 ```
 
-The data set also include a separate file contains the course record of the marathon in the given years, but with different coding for the races and sex. We  first unified the coding system of the two files by converting the coding of the course record file to the same as the marathon performance file. We then merged the two files by the race, year and sex. Another file in the data set contains the air quality index (AQI) values with different sampling duration and measured units of the marathon location in the given years. The inspection of the data shows that the AQI values are missing for sampling duration: "1 HOUR". Since the both 1 hour duration and 8 hour duration shares the same measuring unit: "Parts per million", and there are no missing values for 8 hour duration, it was assumed that the missing value of 1 hour duration can be ignored and the information of the 8 hour duration can be used to represent the air quality of the marathon location. Therefore, we will exclude AQI records measured in 1 hour duration from the analysis. 
+The data set also include a separate file contains the course record of the marathon in the given years, but with different coding for the races and sex. We  first unified the coding system of the two files by converting the coding of the course record file to the same as the marathon performance file. We then merged the two files by the race, year and sex. Another file in the data set contains the air quality index (AQI) values with different sampling duration and measured units of the marathon location in the given years. The inspection of the data shows that the AQI values are missing for sampling duration: "1 HOUR". Since the both 1 hour duration and 8 hour duration shares the same measuring unit: "Parts per million", and there are no missing values for 8 hour duration, it was assumed that the missing value of 1 hour duration can be ignored and the information of the 8 hour duration can be used to represent the air quality of the marathon location. Therefore, we will only use AQI records measured in 8 hours duration from the analysis. 
 
 ## Examine effects of increasing age on marathon performance in men and women
 
-It is proposed that aging will have a negative impact on marathon performance as older individuals will have reduced ability to tolerate heat stress. However, does this assumption translate to decreased running performance in hot environments and does the effect of aging differ between men and women remains unknown. We compared the fastest finish time against age between men and women. Here, the fastest finish time are calculated by $CR + \%CR * CR$, where $CR$ is the course record of the race in the given year for gender and $\%CR$ is the Percent off current course record for gender. Since different races may take different time to finish, we compared the performance among different races across different years by calculating smoothed conditional means. Our result (@fig-age-time) shows that both men and women have a U-shaped relationship between age and fastest finish time, with women have a higher finish time compare to men across all ages. The fastest finish time first drop as age increase until 26 years old, then increase as age increase, for both men and women. It need to be noticed that the slope of the curve changed after 52 years old, with the fastest finish time increase faster as age increase. The slope of the curve is roughly the same between men and women before 75 years old, but the slope varies among different races after 75 years old. The result indicates that aging have a negative impact on marathon performance, with the impact is more significant after 52 years old. Eventhough the fastest finish time drop as age increase until 26 years old, considering the fact that body function is not going to drop at such a young age, this may only due to the fact that young runner may not have enough experience to run a marathon.
+It is proposed that aging will have a negative impact on marathon performance as older individuals will have reduced ability to tolerate heat stress. However, does this assumption translate to decreased running performance in hot environments and does the effect of aging differ between men and women remains unknown. We compared the fastest finish time against age between men and women. Since different races may take different time to finish, we compared the performance among different races across different years by calculating smoothed conditional means. Our result (@fig-age-time) shows that both men and women have a U-shaped relationship between age and fastest finish time, with women have a higher finish time compare to men across all ages. The fastest finish time first drop as age increase until 23 - 33 years old, then increase as age increase, for both men and women. The detail about peak performance are summarized in @tbl-peaks. It need to be noticed that the slope of the curve changed after 52 years old, with the fastest finish time increase faster as age increase. The slope of the curve is roughly the same between men and women before 75 years old, but the slope varies among different races after 75 years old. The result indicates that aging have a negative impact on marathon performance, with the impact is more significant after 52 years old. Eventhough the fastest finish time drop as age increase until roughly 28 years old, considering the fact that body function is not going to drop at such a young age, this may only due to the fact that young runner may not have enough experience to run a marathon.
 
 ```{r}
 # Course record data
@@ -123,9 +124,27 @@ ggplot(data_record, aes(x = Age..yr., y = Time, color = as.factor(Sex))) +
   facet_wrap(~locations) + 
   theme_minimal() + 
   theme(legend.position = c(.85,.2))
-
 ```
+
+```{r}
+#| label: tbl-peaks
+#| tbl-cap: Summary of the peak performance of marathon runners
+
+data_record %>%
+  group_by(Sex, locations) %>%
+  mutate(Sex = ifelse(Sex == 1, 'Male', 'Female')) %>%
+  summarise(min_time = round(min(Time)/60**2,2), age = Age..yr.[which.min(Time)])  %>%
+  kable(col.names = c('Sex', 'Marathon', 'Minimum finish time (Hr)', 'Age')) %>%
+  kable_styling()
+```
+
 The result also suggest that the effect of aging on marathon performance is consistent between gender until 75 years old. But the effect after age 75 varies across races. The effect decrase after 75 years old for both gender in New york City Marathon, and stayed the same for chicago marathon. While in Boston Marathon, the effect only decrease among women, and in twin cities marathon, only among men. In Grandma's marathon, the effect decrease for men and first decrease, then increase among women. 
+
+```{r}
+mod <- glm(Time ~ Age..yr.+ I(Age..yr.^2)+as.factor(Sex), family = gaussian(), data = data_record)
+summary(mod)
+plot(data_record$Age..yr., predict(mod))
+```
 
 ## Explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender.
 
@@ -173,7 +192,7 @@ flag_df <- data.frame(Flag = c('Green', 'Red', 'White', 'Yellow'),
 
 It can be shown that among the times that the record is broken, the percentage of `Green` flag is higher than the percentage of `Green` flag in the data by more than 10 percentage points and the percentage of `Yellow` flag is lower than the percentage of `Yellow` flag in the data by more than 10 percentage points too. 
 
-Since we have already described the relationship between age and marathon performance that in general, marathon performance decrease as age increase. Defining a new way to represent marathon performance, which will show no difference among age is crucial so that we can compare the effect of weather conditions on marathon performance. We will use $\frac{\%CR - E[\%CR | Age]}{E[\%CR | Age]}$, the normalized difference between the $\%CR$ and the expectation of $\%CR$ given the age, to represent the marathon performance of each rows, where $E[\%CR | Age]$ is the expectation of $\%CR$ given the age. This new variable is the percentage of $\%CR$ that is off the expectation of $\%CR$ given the age, and it is expected to be 0 across all ages if the weather conditions have no impact on marathon performance. A natural way to estimate $E[\%CR | Age]$ is by calculating the means, stratified by age. However, as shown in @tbl-data-missing, the distribution of weather conditions is not balanced. If the assumption that weather do have effect on marathon performance is true, then the arithmetic mean will be biased. To address this issue, we will use the weighted mean to estimate $E[\%CR | Age]$, where the weight is the proportion of each weather condition in the data set. With this new variable, we can compare the marathon performance among different weather conditions, and examine whether the impact of weather conditions on marathon performance differs across age and sex. In @fig-below-avg, we separate the records into 2 groups, below average marathon performance and above average marathon performance, corresponding to whether the normalized difference is below or above 0. We also compare the difference of using weighted mean and arithmetic mean to estimate $E[\%CR | Age]$. The result shows that the temperature of 4 different measurements are all higher in those records with above average marathon performance. It also shows that there is little difference between using weighted mean and arithmetic mean to estimate $E[\%CR | Age]$. Nonetheless, we still adopt weighted mean to estimate $E[\%CR | Age]$ because it can avoid bias by theory. 
+Since we have already described the relationship between age and marathon performance that in general, marathon performance decrease as age increase. Defining a new way to represent marathon performance, which will show no difference among age is crucial so that we can compare the effect of weather conditions on marathon performance. We will use $\frac{\%CR - E[\%CR | Age, Sex]}{E[\%CR | Age, Sex]}$, the normalized difference between the $\%CR$ and the expectation of $\%CR$ given the age, to represent the marathon performance of each rows, where $E[\%CR | Age, Sex]$ is the expectation of $\%CR$ given the age. This new variable is the percentage of $\%CR$ that is off the expectation of $\%CR$ given the age, and it is expected to be 0 across all ages if the weather conditions have no impact on marathon performance. A natural way to estimate $E[\%CR | Age, Sex]$ is by calculating the means, stratified by age. However, as shown in @tbl-data-missing, the distribution of weather conditions is not balanced. If the assumption that weather do have effect on marathon performance is true, then the arithmetic mean will be biased. To address this issue, we will use the weighted mean to estimate $E[\%CR | Age, Sex]$, where the weight is the proportion of each weather condition in the data set. With this new variable, we can compare the marathon performance among different weather conditions, and examine whether the impact of weather conditions on marathon performance differs across age and sex. In @fig-below-avg, we separate the records into 2 groups, below average marathon performance and above average marathon performance, corresponding to whether the normalized difference is below or above 0. We also compare the difference of using weighted mean and arithmetic mean to estimate $E[\%CR | Age]$. The result shows that the temperature of 4 different measurements are all higher in those records with above average marathon performance. It also shows that there is little difference between using weighted mean and arithmetic mean to estimate $E[\%CR | Age, Sex]$. Nonetheless, we still adopt weighted mean to estimate $E[\%CR | Age]$ because it can avoid bias by theory. 
 
 ```{r}
 # calculate mean and weighted mean
@@ -327,7 +346,7 @@ ggplot(data_record_weight, aes(x = Age_grp, y = Avg_Cr_Diff, color = as.factor(F
 
 ## Identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance.
 
-The normalized difference we defined earlier proved to be useful to examine the effect of weather conditions on marathon performance while excluding the effect of aging.  In order to determine the largest impact on marathon performance, we calculated the correlation between the normalized difference and the weather parameters who are significant in @tbl-t-test. The result (@fig-correlation) shows that all the temperatures (Dew point, Dry bulb, Wet bulb, etc.) are share a similar pattern or correlation. The correlation first increase until around age 60, then start to decrease. The correlation between the normalized difference and the wind is the exact opposite, with the correlation first decrease until around age 60, then start to increase. The correlation between the normalized difference and the solar radiation is the lowest among all weather parameters, with the correlation is roughly the same across all ages. The correlation measures the strength of the linear relationship between the weather parameters and marathon performance, a positive relation indicates that the increase of weather parameter is associated with worse marathon performance (a higher normalized difference) and vice versa. The magnitude of the correlation can be interpreted as how likely will the marathon performance be affected by the weather parameter. The result indicates that the marathon performance is more likely to be affected by the temperature (adjusted by other weather conditions or unadjusted) than any other weather parameters, and older runner is more likely to be affected by the weather conditions than younger runner. 
+To determine the largest impact on marathon performance, we calculated the correlation between the normalized difference and the significant weather parameters identified in @tbl-t-test. The results (@fig-correlation) show that temperature-related variables (e.g., Dew Point, Dry Bulb, Wet Bulb) exhibit similar patterns. The correlation increases until around age 60 and then begins to decrease. In contrast, wind shows the opposite trend, with the correlation decreasing until around age 60 before increasing. Solar radiation has the lowest correlation among all weather parameters, remaining relatively constant across all ages. These correlations measure the strength of the linear relationship between weather parameters and marathon performance, where a positive correlation indicates that an increase in the weather parameter is associated with worse performance (higher normalized difference) and vice versa. The magnitude of the correlation reflects the potential impact of the weather parameter on marathon performance. The results suggest that temperature, adjusted or unadjusted by other conditions, has the most significant effect, and older runners are more likely to be affected by weather conditions than younger runners.
 
 ```{r}
 
@@ -384,7 +403,7 @@ ggplot(cor_df_long, aes(x = Age..yr., y = Correlation, color = as.factor(Type)))
   theme_minimal() 
 ```
 
-The result which stratified the records by age group (@fig-correlation-grp) shows a similar pattern as @fig-correlation. It also shows that the variance of correlation is higher among runner above 75 years old. Indicating the decreasing effect of weather conditions on marathon performance among older runner shown in @fig-correlation may be unreliable.
+The age-stratified results (@fig-correlation-grp) reveal a similar pattern but highlight increased variance among runners over 75 years old. This suggests that the observed decreasing effect of weather conditions on older runners, shown in @fig-correlation, may be unreliable due to higher variability in this age group.
 
 ```{r}
 #| label: fig-correlation-grp
@@ -405,6 +424,43 @@ ggplot(cor_df_long, aes(x = Age_grp, y = Correlation, color = as.factor(Type))) 
   scale_x_discrete(name = 'Age Group') +
   theme_minimal() 
 ```
+
+In the previous sections, we analyzed weather effects primarily through WBGT flags. To evaluate whether WBGT flags accurately represent weather conditions, we fit three linear models: a full model that included all weather parameters and their interactions (after applying AIC-based stepwise selection), a WBGT-only model, and a flag-only model. The full model demonstrated the best fit, achieving the lowest MSE (@tbl-mse). However, the WBGT and flag models showed only slightly higher MSEs, suggesting that both can still effectively capture the impact of weather on marathon performance. Since WBGT itself is a combination of various temperature measurements—already shown to be highly correlated with marathon performance—we can conclude that using the flag to represent weather conditions is a practical and effective choice.
+
+```{r}
+plot(data_record_weight$X.CR ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$Td..C ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$Tw..C ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$Tg..C ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$WBGT ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$SR.W.m2 ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$DP ,data_record_weight$Avg_Cr_Diff)
+plot(data_record_weight$Wind ,data_record_weight$Avg_Cr_Diff)
+
+low_scope <- lm(Avg_Cr_Diff ~ 1, data = data_record_weight)
+high_scope <- lm(Avg_Cr_Diff ~ Td..C * Tw..C * Tg..C  * SR.W.m2 * DP * Wind, data = data_record_weight)
+mod <- lm(Avg_Cr_Diff ~ Td..C + Tw..C + Tg..C + SR.W.m2 + DP + Wind, data = data_record_weight)
+mod <- step(mod, scope = list(lower = low_scope, upper = high_scope), direction = 'both')
+mod_WBGT <- lm(Avg_Cr_Diff ~ WBGT, data = data_record_weight)
+mod_Flag <- lm(Avg_Cr_Diff ~ Flag, data = data_record_weight)
+
+mse_mod <- mean((data_record_weight$Avg_Cr_Diff - predict(mod))^2)
+mse_mod_WBGT <- mean((data_record_weight$Avg_Cr_Diff - predict(mod_WBGT))^2)
+mse_mod_Flag <- mean((data_record_weight$Avg_Cr_Diff - predict(mod_Flag))^2)
+```
+
+```{r}
+#| label: tbl-mse
+#| tbl-cap: Mean squared error of different models
+
+# Table 3
+mse_df <- data.frame(Model = c('Full model', 'WBGT model', 'Flag model'),
+                     MSE = c(mse_mod, mse_mod_WBGT, mse_mod_Flag))
+mse_df %>%
+  kable() %>%
+  kable_styling()
+```
+
 
 ## Evaluate the impact of air quality on marathon performance
 
@@ -519,6 +575,14 @@ Our analysis shows that aging have an overall negative impact on marathon perfor
 The observation that young runners are most susceptible to weather effects, while older runners are more likely to be affected, is not contradictory. Consider the thermoregulation system's efficacy as a value between 0 and 1. As age increases, this efficacy decreases monotonically. This means that older runners have less room for their thermoregulation to be impacted by weather, as the efficacy cannot fall below 0 (negative thermoregulation efficacy). While younger runners can tolerate a significant decrease in thermoregulation efficacy, they are also more likely to experience stronger effects from weather conditions on marathon performance. Conversely, young runners may have such strong thermoregulation that ideal weather conditions do not fully utilize their system's capacity, making them less susceptible to adverse weather conditions.
 
 Even though the analysis shows that there is little correlation between relative humidity and marathon performance, and there is no significant association between 2. This result can not be drawed to the conclusion that relative humidity has no effect on marathon performance. First of all, dew point and wet bulb temperature, which are both related to relative humidity, are significantly associated with marathon performance. Second, the report only inspect the linear relationship between weather parameters and marathon performance, and the effect of relative humidity on marathon performance may be non-linear. Third, the effect of relative humidity on marathon performance may be mediated by other weather parameters, and the effect of relative humidity may be significant when condition on other weather parameters.
+
+The analysis has several limitations that should be considered. First, the dataset focuses exclusively on the speed records of the fastest runners, which may introduce bias and limit the generalizability of the findings to the broader population of marathon participants. Slower runners or those with different characteristics may exhibit different patterns or relationships with the variables studied. Second, the impact of our newly proposed variable has not yet been fully examined. Further analysis is needed to understand its role and potential interactions with other variables, as well as its overall contribution to explaining marathon performance. Addressing these limitations in future studies could enhance the robustness and applicability of the results.
+
+## References
+
+::: {#refs}
+:::
+
 
 ## Code Appendix
 
