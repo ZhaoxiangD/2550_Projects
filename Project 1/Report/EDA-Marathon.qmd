@@ -190,7 +190,7 @@ It can be shown that among the times that the record is broken, the percentage o
 
 Since we have already described the relationship between age and marathon performance that in general, marathon performance decrease as age increase. Defining a new way to represent marathon performance, which will show no difference among age is crucial so that we can compare the effect of weather conditions on marathon performance. We will use 
 $$
-\frac{\%CR - E[\%CR | Age, Sex]}{E[\%CR | Age, Sex]}
+Diff = \frac{\%CR - E[\%CR | Age, Sex]}{E[\%CR | Age, Sex]}
 $$ 
 the normalized difference between the $\%CR$ and the expectation of $\%CR$ given the age, to represent the marathon performance of each rows, where $E[\%CR | Age, Sex]$ is the expectation of $\%CR$ given the age and sex. This new variable is the percentage of $\%CR$ that is off the expectation of $\%CR$ given the age, and under the assumption that weather condition has no effect on $\%CR$, then:
 
@@ -433,19 +433,11 @@ ggplot(cor_df_long, aes(x = Age_grp, y = Correlation, color = as.factor(Type))) 
 In the previous sections, we analyzed weather effects primarily through WBGT flags. To evaluate whether WBGT flags accurately represent weather conditions, we fit three linear models: a full model that included all weather parameters and their interactions (after applying AIC-based stepwise selection), a WBGT-only model, and a flag-only model. The full model demonstrated the best fit, achieving the lowest MSE (@tbl-mse). However, the WBGT and flag models showed only slightly higher MSEs, suggesting that both can still effectively capture the impact of weather on marathon performance. Since WBGT itself is a combination of various temperature measurements—already shown to be highly correlated with marathon performance—we can conclude that using the flag to represent weather conditions is a practical and effective choice.
 
 ```{r}
-plot(data_record_weight$X.CR ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$Td..C ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$Tw..C ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$Tg..C ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$WBGT ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$SR.W.m2 ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$DP ,data_record_weight$Avg_Cr_Diff)
-plot(data_record_weight$Wind ,data_record_weight$Avg_Cr_Diff)
-
 low_scope <- lm(Avg_Cr_Diff ~ 1, data = data_record_weight)
 high_scope <- lm(Avg_Cr_Diff ~ Td..C * Tw..C * Tg..C  * SR.W.m2 * DP * Wind, data = data_record_weight)
 mod <- lm(Avg_Cr_Diff ~ Td..C + Tw..C + Tg..C + SR.W.m2 + DP + Wind, data = data_record_weight)
-mod <- step(mod, scope = list(lower = low_scope, upper = high_scope), direction = 'both')
+mod <- step(mod, scope = list(lower = low_scope, upper = high_scope), 
+            direction = 'both', trace = 0)
 mod_WBGT <- lm(Avg_Cr_Diff ~ WBGT, data = data_record_weight)
 mod_Flag <- lm(Avg_Cr_Diff ~ Flag, data = data_record_weight)
 
