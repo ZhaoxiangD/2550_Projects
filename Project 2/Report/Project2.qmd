@@ -73,6 +73,8 @@ library(ggpubr)
 library(tidyr)
 library(ggcorrplot)
 library(parallel)
+library(rms)
+library(CalibrationCurves)
 ```
 
 ```{r}
@@ -187,7 +189,7 @@ kable(missing_df, col.names = "Missing Percentage")
 
 ## Identifing the interactions
 
-Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the their VIF. VIF is a measures how much the variance of a estimated regression coefficient due to correlations among preictors. The higher the value, the less benefit of including the variable into interaction terms as the addtional information brought by the interaction terms may have been already captured by the main effect of other predictors. We obly select variables with VIF less than 1.3 to include in the interaction terms. The threshold is set by balancing the trade-off between including more variables and avoiding overfitting, and the gap of VIF values. the selected variables are `readiness`, `antidepmed`, `sex_ps`, `NMR`, `hedonsum_y_pq1` and `otherdiag`, with corresponding VIF values are 1.11 1.12 1.15 1.21 1.23 1.28. Only up to 2 way interaction terms are included in the model, as the number of interaction terms increase exponentially with the number of variables, and the sample size is limited. We also consider the interaction terms between the treatment group and other covariates, as the effect of the treatment group may be moderated by other variables.
+Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the their VIF. VIF is a measures how much the variance of a estimated regression coefficient due to correlations among preictors. The higher the value, the less benefit of including the variable into interaction terms as the addtional information brought by the interaction terms may have been already captured by the main effect of other predictors. We only select variables with VIF less than 1.3 to include in the interaction terms. The threshold is set by balancing the trade-off between including more variables and avoiding overfitting, and the gap of VIF values. the selected variables are `readiness`, `antidepmed`, `sex_ps`, `NMR`, `hedonsum_y_pq1` and `otherdiag`, with corresponding VIF values are 1.11 1.12 1.15 1.21 1.23 1.28. Only up to 2 way interaction terms are included in the model, as the number of interaction terms increase exponentially with the number of variables, and the sample size is limited. We also consider the interaction terms between the treatment group and other covariates, as the effect of the treatment group may be moderated by other variables.
 
 ```{r}
 vif_res <- car::vif(glm(abst ~ . -group, data = data_tbl, family = "binomial"))
@@ -211,9 +213,10 @@ Where $L_k$ is the kth variable with VIF < 1.3 showed in the previous paragraph,
 
 The primary goal of this project is to identify potential moderators of behavioral treatment effects on end-of-treatment (EOT) abstinence and to assess baseline predictors of abstinence while controlling for behavioral treatment and pharmacotherapy. We employed various variable selection techniques, including Lasso regression and subset selection with L0, L0L1, and L0L2 penalties, all implemented using 10-fold cross-validation.
 
-To address missing values in the dataset, we applied multiple imputation prior to splitting the data into training and testing sets. This approach was chosen due to the limited sample size, as performing imputation after data splitting could lead to unreliable results. We randomly allocated 80% of the records to the training set, reserving the remaining 20% for testing. The models were fitted to the training set of each imputed dataset, and the coefficients were pooled to generate the final results. Variables included in the final model were those that remained in at least 3 out of the 5 imputed datasets.
+To address missing values in the dataset, we applied multiple imputation before splitting the data into training and testing sets. This approach was selected due to the limited sample size, as performing imputation after data splitting could result in unreliable outcomes. The multiple imputation process was conducted using the `mice` package in R, generating a total of five imputed datasets. We randomly assigned 80% of the records to the training set and reserved the remaining 20% for testing. Models were fitted to the training set for each imputed dataset, and the coefficients were pooled to obtain the final results. Variables included in the final model were those retained in at least three out of the five imputed datasets.
 
 For subset selection models using L0, L0L1, and L0L2 penalties, the $\lambda$ and $\gamma$ values were chosen to minimize the mean cross-validated error. The coefficients from each model were averaged across imputed datasets to obtain the final results. Using these pooled results, the model was then applied to the test dataset to evaluate its performance.
+
 
 ```{r}
 #multiple imputation
@@ -398,7 +401,35 @@ legend("bottomright", legend = c("Lasso", "L0", "L0L1", "L0L2"), col = c("black"
 ```
 
 
-@fig-roc-test shows the all four models' performance in test data. Subset selection model with L0 penalty have the highest AUC among all models, indicating the model is robust. Based on this result, we use the model with L0 penalty to answer our research question. The model exclude all but 3 terms: `NHW1`, `ftcd_score` and `Var1:age_ps`. All terms with behaviour treatment are excluded from the model, indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. We will fit a logistic regression model with the selected terms to examine the effect of the predictors on smoking cessation. As shown in @tbl-regression, the model shows being a non hispanic white(`NHW` = 1) will increase the odds of quitting smoking by 161%, and one unit increase in FTCD score at baseline (`ftcd_score`) will decrease the odds of quitting smoking by 25%. The mean effect of `Var` on smoking cessation is negative, but considering the interaction terms, the effect of `Var` on smoking cessation positive when the subject is over 15 years old. Considering the minimum age in the dataset is 19, exploring the effect of `Var` on smoking cessation among people with age less than 19 is merely expectorating the model and is not meaningful. Taking varenicline(Var = 1) for a subject with 20 years of old will increase the odds of quitting smoking by 24%. When the subject is 40 years of old, the increase of odds is 177%. Indicating the effect is more significant among older people. However, as the p value of both the main effects and the interaction terms are not significant, the effect of `Var` on smoking cessation is still questionable.
+@fig-roc-test shows the all four models' performance in test data. Subset selection model with L0 penalty have the highest AUC among all models, indicating the model is robust.
+
+```{r}
+#| label: fig-calib
+#| fig-cap: Calibration curves of the models in test data
+#| layout-nrow: 2
+#| fig-width: 6
+#| output: false
+#| fig-subcap:
+#|  - "Calibration curve of the L0L2 model"
+#|  - "Calibration curve of the L0L1 model"
+#|  - "Calibration curve of the L0 model"
+#|  - "Calibration curve of the Lasso model"
+
+p1 <- valProbggplot(as.numeric(subset02_p), as.numeric(test_data$abst)-1)
+p1$ggPlot
+p2 <- valProbggplot(as.numeric(subset01_p), as.numeric(test_data$abst)-1)
+p2$ggPlot
+p3 <- valProbggplot(as.numeric(subset_p), as.numeric(test_data$abst)-1)
+p4 <- valProbggplot(as.numeric(lasso_p), as.numeric(test_data$abst)-1)
+p3$ggPlot
+p4$ggPlot
+```
+
+We also examine the calibration curve of the model in the test data, showed in @fig-calib. The calibration curve of the L0 model is the closest to the 45 degree line, indicating the model is well calibrated. While the orther model's calibration curve is largely devated from the 45 degree line, indicating the model may not be well calibrated.
+
+Based on the performance of the model in the test data, we use the model with L0 penalty to answer our research question. The model exclude all but 3 terms: `NHW1`, `ftcd_score` and `Var1:age_ps`. All terms with behaviour treatment are excluded from the model, indicating that the behaviour treatment has no effect on addressing smoking cessation among MDD patients. 
+
+We fit a logistic regression model with the selected terms to examine the effect of the predictors on smoking cessation. As shown in @tbl-regression, the model shows being a non hispanic white(`NHW` = 1) will increase the odds of quitting smoking by 161%, and one unit increase in FTCD score at baseline (`ftcd_score`) will decrease the odds of quitting smoking by 25%. The mean effect of `Var` on smoking cessation is negative, but considering the interaction terms, the effect of `Var` on smoking cessation positive when the subject is over 15 years old. Considering the minimum age in the dataset is 19, exploring the effect of `Var` on smoking cessation among people with age less than 19 is merely expectorating the model and is not meaningful. Taking varenicline(Var = 1) for a subject with 20 years of old will increase the odds of quitting smoking by 24%. When the subject is 40 years of old, the increase of odds is 177%. Indicating the effect is more significant among older people. However, as the p value of both the main effects and the interaction terms are not significant, the effect of `Var` on smoking cessation is still questionable.
 
 ```{r}
 #| label: tbl-regression
