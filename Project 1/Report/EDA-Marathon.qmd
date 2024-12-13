@@ -28,7 +28,7 @@ library(gridExtra)
 
 ## Introduction
 
-Marathon running is a physically demanding sport which requires a combination of endurance, strength, and mental fortitude. Runners characteristics shaped the performance as Men are more likely than women to slow over the course of a marathon[@DEANER_2015]. And older runners tend to have less pace variance in a marathon than younger runners[@Nikolaidis_2017]. Research has shown adverse weather condition(High temperature, humidity, etc) can have a negative impact on marathon performance on both elite[@Knechtle_2021] and recreational runners[@ELY_2007]. But the effect diminish among females compare to male[@Vihma_2009]. One of the many reasons that explaine the negative relation between weather condition and marathon performance is that the body's ability to release heat is reduced in hot environments, which can lead to heat stress and reduce the body's ability to perform at its best. 
+Marathon running is a physically demanding sport which requires a combination of endurance, strength, and mental fortitude. Runners characteristics shaped the performance as Men are more likely than women to slow over the course of a marathon[@DEANER_2015]. And older runners tend to have less pace variance in a marathon than younger runners[@Nikolaidis_2017]. Research has shown adverse weather condition(High temperature, humidity, etc) can have a negative impact on marathon performance on both elite[@Knechtle_2021] and recreational runners[@ELY_2007]. But the effect diminish among females compare to male[@Vihma_2009]. One of the many reasons that explaine the negative relation between weather condition and marathon performance is that the body's ability to release heat is reduced in hot environments, which can lead to heat stress and reduce the body's ability to perform at its best. Aging further compromises thermoregulation and heat tolerance [@Kenney_2003], but it remains unclear whether this translates directly to decreased running performance in hot environments and whether the effects of aging differ between sexes.
 
 This report aim to examine effects of increasing age on marathon performance in men and women by using percentage off record as the measurement metrics, explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender, identify the weather parameters (WBGT, Flag conditions, temperature, etc) that have the largest impact on marathon performance and evaluate the impact of air quality on marathon performance. The analysis is carried out in R (version 4.4.0) using `ggplot2`, `dplyr`, `lubridate`, `kableExtra`, `gtsummary`, `stringr`, `ggpubr`, `RColorBrewer`, `gridExtra` and `latex2exp` packages.
 
@@ -50,8 +50,10 @@ colnames(data)[[1]] <- 'Race'
 colnames(data)[[3]] <- 'Sex'
 
 # Table 1
-round(table(data$Flag)/sum(table(data$Flag)) * 100,2) %>%
-  kable(col.names = c('Flag', 'Percentage (%)')) %>%
+df1 <- data.frame(Flag = names(table(data$Flag)), 
+                  Count = as.numeric(table(data$Flag)),
+                  Percentage = round(as.numeric(table(data$Flag))/sum(table(data$Flag)) * 100,2))
+kable(df1, col.names = c('Flag', 'Count', 'Percentage (%)')) %>%
   kable_styling()
 ```
 
@@ -80,7 +82,7 @@ The data set also include a separate file contains the course record of the mara
 
 ## Examine effects of increasing age on marathon performance in men and women
 
-It is proposed that aging will have a negative impact on marathon performance as older individuals will have reduced ability to tolerate heat stress. However, does this assumption translate to decreased running performance in hot environments and does the effect of aging differ between men and women remains unknown. We compared the fastest finish time against age between men and women. Since different races may take different time to finish, we compared the performance among different races across different years by calculating smoothed conditional means. Our result (@fig-age-time) shows that both men and women have a U-shaped relationship between age and fastest finish time, with women have a higher finish time compare to men across all ages. The fastest finish time first drop as age increase until 23 - 33 years old, then increase as age increase, for both men and women. The detail about peak performance are summarized in @tbl-peaks. It need to be noticed that the slope of the curve changed after 52 years old, with the fastest finish time increase faster as age increase. The slope of the curve is roughly the same between men and women before 75 years old, but the slope varies among different races after 75 years old. The result indicates that aging have a negative impact on marathon performance, with the impact is more significant after 52 years old. Eventhough the fastest finish time drop as age increase until roughly 28 years old, considering the fact that body function is not going to drop at such a young age, this may only due to the fact that young runner may not have enough experience to run a marathon.
+It is proposed that aging will have a negative impact on marathon performance as older individuals will have reduced ability to tolerate heat stress. However, whether this assumption translate to decreased running performance in hot environments and does the effect of aging differ between men and women remains unknown. We compared the fastest finish time against age between men and women. Since different races may take different time to finish, we compared the performance among different races across different years by calculating smoothed conditional means. Our result (@fig-age-time) shows that both men and women have a U-shaped relationship between age and fastest finish time, with women have a higher finish time compare to men across all ages. The fastest finish time first drop as age increase until 23 - 33 years old, then increase as age increase, for both men and women. The detail about peak performance are summarized in @tbl-peaks. It need to be noticed that the slope of the curve changed after 52 years old, with the fastest finish time increase faster as age increase. The slope of the curve is roughly the same between men and women before 75 years old, but the slope varies among different races after 75 years old. The result indicates that aging have a negative impact on marathon performance, with the impact is more significant after 52 years old. Eventhough the fastest finish time drop as age increase until roughly 28 years old, considering the fact that body function is not going to drop at such a young age, this may only due to the fact that young runner may not have enough experience to run a marathon.
 
 ```{r}
 # Course record data
@@ -139,12 +141,6 @@ data_record %>%
 ```
 
 The result also suggest that the effect of aging on marathon performance is consistent between gender until 75 years old. But the effect after age 75 varies across races. The effect decrase after 75 years old for both gender in New york City Marathon, and stayed the same for chicago marathon. While in Boston Marathon, the effect only decrease among women, and in twin cities marathon, only among men. In Grandma's marathon, the effect decrease for men and first decrease, then increase among women. 
-
-```{r}
-mod <- glm(Time ~ Age..yr.+ I(Age..yr.^2)+as.factor(Sex), family = gaussian(), data = data_record)
-summary(mod)
-plot(data_record$Age..yr., predict(mod))
-```
 
 ## Explore the impact of environmental conditions on marathon performance, and whether the impact differs across age and gender.
 
