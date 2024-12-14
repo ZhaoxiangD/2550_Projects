@@ -33,6 +33,7 @@ A total of 25 variables were collected in the study, including demographic infor
 #| tbl-cap: "An overview of participant characteristics"
 
 # Example data frame representing the participant characteristics table
+
 participant_characteristics <- data.frame(
   Variable = c("abst", "Var (Varenicline)", "BA (Behavioral Activation)", "age_ps", "sex_ps", "NHW", "Black", "Hisp", 
                "inc", "edu", "ftcd_score", "ftcd.5.mins", "bdi_score_pq1", "cpd_ps", "crv_total_pq1", "hedonsum_n_pq1", 
@@ -83,9 +84,10 @@ library(CalibrationCurves)
 data <- read.csv("../Data/project2.csv")
 num_col <- c(5,12,14:19,23,25)
 ordinal_col <- c(10,11)
+
+# Preprocess
 data[,num_col] <- lapply(data[,num_col], as.numeric)
 data[,ordinal_col] <- lapply(data[,ordinal_col], factor, order = T)
-
 data[,-c(num_col, ordinal_col)] <- lapply(data[,-c(num_col, ordinal_col)], factor)
 ```
 
@@ -168,6 +170,8 @@ The correlation among variables are also examined, showed in @tbl-vif. The table
 ```{r}
 #| label: tbl-vif
 #| tbl-cap: Generalized variance inflation factor of the data
+
+# VIF
 car::vif(glm(abst ~ . -group, data = data_tbl, family = "binomial")) %>%
   as.data.frame() %>%
   kable(col.names = 'VIF')
@@ -180,7 +184,7 @@ There are missingness in the dataset, showed in @tbl-missing. 7 out of 25 variab
 #| label: tbl-missing
 #| tbl-cap: Missingness of the data
 
-# missingness
+# missingness table
 missing_df <- apply(data, 2, function(x) sum(is.na(x)))
 missing_df <- missing_df[missing_df != 0]
 missing_df <- round(missing_df/nrow(data) * 100, 4)
@@ -193,6 +197,7 @@ kable(missing_df, col.names = "Missing Percentage")
 Given that many variables in the dataset are categorical, including all possible interaction terms would produce more terms than the sample size allows, leading to model overfitting. To avoid this, we manually select covariates for inclusion based on the their VIF. VIF is a measures how much the variance of a estimated regression coefficient due to correlations among preictors. The higher the value, the less benefit of including the variable into interaction terms as the addtional information brought by the interaction terms may have been already captured by the main effect of other predictors. We only select variables with VIF less than 1.3 to include in the interaction terms. The threshold is set by balancing the trade-off between including more variables and avoiding overfitting, and the gap of VIF values. the selected variables are `readiness`, `antidepmed`, `sex_ps`, `NMR`, `hedonsum_y_pq1` and `otherdiag`, with corresponding VIF values are 1.11 1.12 1.15 1.21 1.23 1.28. Only up to 2 way interaction terms are included in the model, as the number of interaction terms increase exponentially with the number of variables, and the sample size is limited. We also consider the interaction terms between the treatment group and other covariates, as the effect of the treatment group may be moderated by other variables.
 
 ```{r}
+# Depicted
 vif_res <- car::vif(glm(abst ~ . -group, data = data_tbl, family = "binomial"))
 vif_res <- as.data.frame(vif_res)
 vif_res$var <- rownames(vif_res)
@@ -228,6 +233,7 @@ train_index <- sample(1:nrow(data), 0.8*nrow(data))
 
 ```{r}
 
+# Model selection on all 5 datasets
 model_matrix_fun <- function(data, train_id){
   #' @param data: the data set
   #' @param train_id: the index of the training set
@@ -261,16 +267,19 @@ fit_regression <- function(data, train_id){
   subset02_fit <- L0Learn.cvfit(model_data[[1]], model_data[[2]], 
                                 nFolds=10, penalty="L0L2", loss = 'Logistic')
   
+  # Extract variables names and coefficients, Exclude variables with effect size = 0
   var_names <- rownames(coef(lasso_fit))
   lasso_coef_id <- which(coef(lasso_fit) != 0)
   lasso_res <- data.frame(var_names[lasso_coef_id], coef(lasso_fit)[lasso_coef_id])
   
   # choose gamma and lambda so that cvmeans are minimized
+  # L0
   min_l_subset <- which.min(subset_fit$cvMeans[[1]])
   subset_id <- coef(subset_fit, subset_fit$fit$lambda[[1]][min_l_subset], 0)
   id <- which(subset_id != 0)
   subset_res <- data.frame(var_names[id], subset_id[id])
   
+  # L0L1
   min_l_subset01 <- sapply(1:10, function (x) which.min(subset01_fit$cvMeans[[x]]))
   min_g_subset01 <- sapply(1:10, function (x) subset01_fit$cvMeans[[x]][[min_l_subset01[x]]])
   gamma_id <- which.min(min_g_subset01)
@@ -284,7 +293,7 @@ fit_regression <- function(data, train_id){
   subset01_res <- data.frame(var_names[id], 
                              subset01_coef[id])
   
-  
+  #L0L2
   min_l_subset02 <- sapply(1:10, function (x) which.min(subset02_fit$cvMeans[[x]]))
   min_g_subset02 <- sapply(1:10, function (x) subset02_fit$cvMeans[[x]][[min_l_subset02[x]]])
   gamma_id <- which.min(min_g_subset02)
@@ -301,10 +310,11 @@ fit_regression <- function(data, train_id){
 }
 set.seed(2550)
 
+# run selection
 fit_res <- mclapply(1:5, function(x) fit_regression(data_imp[[x]], train_index), 
                     mc.cores = 5)
 
-#choose variable and pooled the result
+#Manually choose variable and pooled the result
 lasso_var <- sapply(1:5, function(x) fit_res[[x]][[1]][,1])
 lasso_var <- as.factor(unlist(lasso_var))
 lasso_res <- lapply(1:5, function(x) fit_res[[x]][[1]])
@@ -365,34 +375,35 @@ subset02_coef <- data.frame(var = c('Intercept', 'antidepmed1:NMR', 'BA1:bdi_sco
 test_data <- lapply(1:5, function(x) data_imp[[x]][-train_index,])
 test_data <- do.call(rbind, test_data)
 
-# fit model on test dataset
+# manually fit model on test dataset
 lasso_x <- model.matrix(abst ~ Var:age_ps + Var:NMR, data = test_data)
-lasso_x <- lasso_x[,c(1,3,5)]
+lasso_x <- lasso_x[,c(1,3,5)] # remove reference level
 t <- lasso_coef$value %*% t(lasso_x)
-lasso_p <- exp(t)/(1+exp(t))
+lasso_p <- exp(t)/(1+exp(t)) #expit
 auc_test_l <- roc(test_data$abst, lasso_p)
 
 subset_x <- model.matrix(abst ~ ftcd_score + NHW + Var:age_ps, data = test_data)
-subset_x <- subset_x[,-4]
+subset_x <- subset_x[,-4] # remove reference level
 t <- subset_coef$value %*% t(subset_x)
 subset_p <- exp(t)/(1+exp(t))
 auc_test_sub <- roc(test_data$abst, subset_p)
 
 subset01_x <- model.matrix(abst ~ BA:bdi_score_w00 + ftcd_score + Var:age_ps, data = test_data)
-subset01_x <- subset01_x[,c(1,2,4,6)]
+subset01_x <- subset01_x[,c(1,2,4,6)] # remove reference level
 t <- subset01_coef$value %*% t(subset01_x)
 subset01_p <- exp(t)/(1+exp(t))
 auc_test_sub01 <- roc(test_data$abst, subset01_p)
 
 subset02_x <- model.matrix(abst ~ antidepmed:NMR + BA:bdi_score_w00 + BA:inc + ftcd_score + mde_curr + NHW + Var:age_ps + Var:Black, data = test_data)
-subset02_x <- subset02_x[,-c(5,7,9,11,13,15,17,19)]
-subset02_x <- subset02_x[,-c(8:10)]
+subset02_x <- subset02_x[,-c(5,7,9,11,13,15,17,19)] # remove reference level
+subset02_x <- subset02_x[,-c(8:10)] # remove reference level
 t <- subset02_coef$value %*% t(subset02_x)
 subset02_p <- exp(t)/(1+exp(t))
 auc_test_sub02 <- roc(test_data$abst, subset02_p)
 
-saveRDS(list(lasso_coef, subset_coef, subset01_coef, subset02_coef), "coef.rds")
+#saveRDS(list(lasso_coef, subset_coef, subset01_coef, subset02_coef), "coef.rds")
 
+# Plot Roc curve
 plot.roc(auc_test_l, print.auc=TRUE, col = 'black')
 plot.roc(auc_test_sub, print.auc=TRUE, col = 'blue', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.4)
 plot.roc(auc_test_sub01, print.auc=TRUE, col = 'red', add = TRUE, print.auc.x = 0.5, print.auc.y = 0.3)
@@ -416,6 +427,7 @@ legend("bottomright", legend = c("Lasso", "L0", "L0L1", "L0L2"), col = c("black"
 #|  - "Calibration curve of the L0 model"
 #|  - "Calibration curve of the Lasso model"
 
+# Calibration plots
 p1 <- valProbggplot(as.numeric(subset02_p), as.numeric(test_data$abst)-1)
 p1$ggPlot
 p2 <- valProbggplot(as.numeric(subset01_p), as.numeric(test_data$abst)-1)
@@ -436,6 +448,7 @@ We fit a logistic regression model with the selected terms to examine the effect
 #| label: tbl-regression
 #| fig-cap: Coefficients of the best model
 
+# final model
 mod <- glm(abst ~ NHW + ftcd_score + Var*age_ps, data = data, family = "binomial")
 tbl_regression(mod)
 ```
